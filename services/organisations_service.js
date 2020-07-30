@@ -60,6 +60,7 @@ handleInsert = function(item) {
 };
 
 // unions 3 different queries - parents, sisters and daughters lookups
+// orders by name (first column from the subquery)
 // does simple pagination using LIMIT and OFFSET based on the page parameter
 exports.get = function(orgName, page = 1) {
   let limit = 100;
@@ -84,6 +85,7 @@ FROM organisations parent
 JOIN relationships ON parent.id = child_id
 JOIN organisations child ON child.id  = parent_id
 WHERE child.name = ?)
+ORDER BY 1
 LIMIT ?
 OFFSET ?;`, [orgName, orgName, orgName, limit, page*limit-limit]
   )
