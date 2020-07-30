@@ -5,12 +5,15 @@ const organisationRoutes = (app) => {
     let orgName = req.query.name;
     let page = req.query.page
     service.get(orgName, page).then(rows => {
+      res.status(200) // OK
       res.send(rows);
     });
   });
 
-  app.post('/organisations', (req, res, next) => {
+  app.post('/organisations', (req, res) => {
     service.insert(req.body);
+    res.status(201) // CREATED
+    // just return the same body we got
     res.send(req.body);
   });
 };
