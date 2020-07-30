@@ -7,7 +7,7 @@ Simple JSON API to manage organisations and their relationships
 * NodeJS
 * Express (HTTP)
 * Knex (DB connection & queries)
-* SQL Lite (DB)
+* SQLite (DB)
 * Body parser (JSON parsing)
 * Nodemon (dev tool for convenience)
 
@@ -26,4 +26,23 @@ Simple JSON API to manage organisations and their relationships
 
 ## Setup
 
-TODO
+# Prerequisits
+
+* Docker installed
+* NodeJS installed
+
+# Build steps
+
+* npm install
+* npx knex migrate:latest
+* npm start
+
+# Docker setup
+
+* docker build -t organisations_api .
+* docker run -p 3000:3000 -d organisations_api
+
+# Making requests
+
+* using curl/postman/insomnia etc POST the JSON to http://localhost:3000/organisations
+* check the results using GET http://localhost:3000/organisations?name=Black%20Banana&page=1
