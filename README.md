@@ -24,25 +24,25 @@ Simple JSON API to manage organisations and their relationships
     * page - int, for pagination
   * Returns JSON array of all the organisations and how they relate to the one in question
 
-## Setup
+# Setup
 
-# Prerequisits
+## Prerequisits
 
 * Docker installed
 * NodeJS installed
 
-# Build steps
+## Build steps
 
 * npm install
 * npx knex migrate:latest
 * npm start
 
-# Docker setup
+## Docker setup
 
 * docker build -t organisations_api .
 * docker run -p 3000:3000 -d organisations_api
 
-# Making requests
+## Making requests
 
 * using curl/postman/insomnia etc POST the JSON to http://localhost:3000/organisations
 * check the results using GET http://localhost:3000/organisations?name=Black%20Banana&page=1
