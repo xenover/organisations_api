@@ -10,3 +10,5 @@ require('./routes/routes.js')(app);
 const server = app.listen(3000, () => {
   console.log('Server started up on port %s', server.address().port);
 });
+
+module.exports = server

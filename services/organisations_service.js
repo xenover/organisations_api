@@ -93,5 +93,5 @@ OFFSET ?;`, [orgName, orgName, orgName, limit, page*limit-limit],
 };
 
 exports.insert = function(body) {
-  handleInsert(body);
+  return handleInsert(body);
 };

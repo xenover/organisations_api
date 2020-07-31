@@ -37,6 +37,14 @@ Simple JSON API to manage organisations and their relationships
 * npx knex migrate:latest
 * npm start
 
+## Linting
+
+* ./node_modules/.bin/eslint .
+
+## Testing
+
+* npm test
+
 ## Docker setup
 
 * docker build -t organisations_api .
