@@ -3,22 +3,24 @@ process.env.NODE_ENV = 'test';
 const chai = require('chai');
 const chaiHttp = require('chai-http');
 const server = require('../server');
-const should = require('chai').should();
-// const config = require('../knexfile.js')['test'];
-//
-// module.exports = require('knex')(config);
+
+require('chai').should();
+
+const config = require('../knexfile.js')[process.env.NODE_ENV];
+const knex = require('knex')(config);
 
 chai.use(chaiHttp);
 
 describe('Organisations', () => {
-  // beforeEach((done) => {
-  //   knex('relationships').del().then(() => {
-  //     knex('organisations').del().then(() => {
-  //       done();
-  //     });
-  //   });
-  // });
-  describe('/POST organisations', () => {
+  before(async function() {
+    await knex.migrate.up();
+  });
+  after(async function() {
+    await knex('relationships').del().then(() => {
+      knex('organistions').del();
+    });
+  });
+  describe('relationships handling', () => {
     it('it should return the correct relationships for an org', (done) => {
       const inputJson = {
         'org_name': 'Parent1',
@@ -70,18 +72,19 @@ describe('Organisations', () => {
           .send(inputJson)
           .end((err, res) => {
             res.should.have.status(201);
-
-            // GET organisations
-            chai.request(server)
-                .get('/organisations')
-                .query({name: 'GrandChild4'})
-                .end((err, res) => {
-                  res.should.have.status(200);
-                  res.body.should.deep.equal(expectedJson);
-                  done();
-                });
           });
-
+      // Wait 1 second for the POST to finish before querying
+      setTimeout(function() {
+        // GET organisations
+        chai.request(server)
+            .get('/organisations')
+            .query({name: 'GrandChild4'})
+            .end((err, res) => {
+              res.should.have.status(200);
+              res.body.should.deep.equal(expectedJson);
+              done();
+            });
+      }, 1000);
     });
   });
 });
