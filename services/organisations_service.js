@@ -62,7 +62,7 @@ handleInsert = function(item) {
 // unions 3 different queries - parents, sisters and daughters lookups
 // orders by name (first column from the subquery)
 // does simple pagination using LIMIT and OFFSET based on the page parameter
-exports.get = function(orgName, page = 1) {
+exports.get = function(orgName = "", page = 1) {
   let limit = 100;
   return knex.raw(
     `SELECT * FROM
