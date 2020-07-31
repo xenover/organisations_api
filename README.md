@@ -10,6 +10,8 @@ Simple JSON API to manage organisations and their relationships
 * SQLite (DB)
 * Body parser (JSON parsing)
 * Nodemon (dev tool for convenience)
+* Mocha (testing)
+* Chai (testing)
 
 ## APIs
 
