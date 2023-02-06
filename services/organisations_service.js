@@ -1,70 +1,54 @@
-const knex = require('../database/db.js');
+/* eslint-disable comma-dangle */
+/* eslint-disable space-before-function-paren */
+/* eslint-disable object-curly-spacing */
+/* eslint-disable indent */
+/* eslint-disable require-jsdoc */
 
-// handles relationships creation
-// calls handleInsert to add daughter organisations
-handleRelationships = async function(parentId, daughters) {
-  if (daughters != undefined && daughters.length > 0) {
-    for (const item of daughters) {
-      // add organisation, get the returned organisation ID for relationship
-      const daughterId = await handleInsert(item);
-      // check if relationship already exists
-      knex.from('relationships')
-          .where({child_id: daughterId, parent_id: parentId})
-          .then((rows) => {
-            if (rows.length == 0) {
-              // add relationship
-              return knex.insert({child_id: daughterId, parent_id: parentId})
-                  .into('relationships');
-            };
-          });
-    };
-  };
-};
+const knex = require('../database/db.js');
 
 // handles organisations creation
 // can be called recursively to add daughters
-handleInsert = function(item) {
+async function insert(item) {
   const parentOrgName = item.org_name;
   const daughters = item.daughters;
-  return new Promise((resolve, reject) => {
-    // check for existing records
-    knex.from('organisations')
-        .select('id')
-        .where({name: parentOrgName})
-        .then((rows) => {
-          if (rows.length > 0) {
-            // exists - don't insert but add relationships
-            const parentId = rows[0].id;
-            handleRelationships(parentId, daughters);
-            // return parentId in case this method was called recursively
-            resolve(parentId);
-          } else {
-            // add organisation
-            knex.insert({name: parentOrgName})
-                .into('organisations')
-                .then(() => {
-                  // fetch the ID since sql lite doesn't support RETURNING(ID)
-                  knex.from('organisations')
-                      .select('id')
-                      .where({name: parentOrgName})
-                      .then((rows) => {
-                        // add relationships
-                        const parentId = rows[0].id;
-                        handleRelationships(parentId, daughters);
-                        resolve(parentId);
-                      });
-                });
-          };
-        });
-  });
-};
+  // check for existing records
+  let rows = await getParent(parentOrgName);
+  if (rows.length === 0) {
+    // add organisation
+    await knex.insert({ name: parentOrgName }).into('organisations').then();
+  }
+  // get newly created parent org
+  rows = await getParent(parentOrgName);
+  const parentId = rows[0].id;
+  if (daughters && daughters.length > 0) {
+    await insertChildren(parentId, daughters);
+  }
+  // return parentId in case this method was called recursively
+  return parentId;
+}
+
+// handles relationships creation
+// calls handleInsert to add daughter organisations
+async function insertChildren(parentId, daughters) {
+  for (const item of daughters) {
+    // add organisation, get the returned organisation ID for relationship
+    const daughterId = await insert(item);
+    // check if relationship already exists
+    const rows = await getChild(daughterId, parentId);
+    if (rows.length === 0) {
+      // add relationship
+      await insertChild(daughterId, parentId);
+    }
+  }
+}
 
 // unions 3 different queries - parents, sisters and daughters lookups
 // orders by name (first column from the subquery)
 // does simple pagination using LIMIT and OFFSET based on the page parameter
-exports.get = function(orgName = '', page = 1) {
+async function get(orgName = '', page = 1) {
   const limit = 100;
-  return knex.raw(
+  return knex
+    .raw(
       `SELECT * FROM
 (SELECT parent.name as org_name, "parent" as relationship_type
 FROM organisations parent
@@ -88,10 +72,35 @@ JOIN organisations child ON child.id  = parent_id
 WHERE child.name = ?)
 ORDER BY 1
 LIMIT ?
-OFFSET ?;`, [orgName, orgName, orgName, limit, page*limit-limit],
-  );
-};
+OFFSET ?;`,
+      [orgName, orgName, orgName, limit, page * limit - limit]
+    )
+    .then();
+}
 
-exports.insert = function(body) {
-  return handleInsert(body);
+async function getParent(parentOrgName) {
+  return knex
+    .from('organisations')
+    .select('id')
+    .where({ name: parentOrgName })
+    .then();
+}
+
+async function getChild(childId, parentId) {
+  return knex
+    .from('relationships')
+    .where({ child_id: childId, parent_id: parentId })
+    .then();
+}
+
+async function insertChild(childId, parentId) {
+  return knex
+    .insert({ child_id: childId, parent_id: parentId })
+    .into('relationships')
+    .then();
+}
+
+module.exports = {
+  get,
+  insert,
 };
