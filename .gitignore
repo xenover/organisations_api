@@ -1,4 +1,4 @@
 node_modules/
 dev.sqlite3
 test.sqlite3
-.dccacheg
+.dccache
