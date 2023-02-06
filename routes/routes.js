@@ -1,11 +1,11 @@
-const organisationRoutes = require('./organisations');
+const organisationRoutes = require("./organisations");
 
 const appRouter = (app) => {
-  app.get('/', (req, res) => {
-    res.send('Nothing here');
-  });
+	app.get("/", (req, res) => {
+		res.send("Nothing here");
+	});
 
-  organisationRoutes(app);
+	organisationRoutes(app);
 };
 
 module.exports = appRouter;
