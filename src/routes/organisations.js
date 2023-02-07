@@ -1,17 +1,16 @@
-const service = require("../services/organisations_service");
+const service = require("../services/organisations");
 
 const organisationRoutes = (app) => {
 	app.get("/organisations", async (req, res) => {
-		const orgName = req.query.name;
-		const page = req.query.page;
-		const rows = await service.get(orgName, page);
-		res.status(200); // OK
+		const { name, page } = req.query;
+		const rows = await service.get(name, page);
+		res.status(200);
 		res.send(rows);
 	});
 
 	app.post("/organisations", async (req, res) => {
 		await service.insert(req.body);
-		res.status(201); // CREATED
+		res.status(201);
 		res.send("OK");
 	});
 };
