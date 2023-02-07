@@ -1,15 +1,12 @@
 process.env.NODE_ENV = "test";
 
-const chai = require("chai");
-const chaiHttp = require("chai-http");
-const server = require("../server");
-
-require("chai").should();
+const request = require("supertest");
+const assert = require("assert");
 
 const config = require("../knexfile.js")[process.env.NODE_ENV];
 const knex = require("knex")(config);
 
-chai.use(chaiHttp);
+const server = require("../server");
 
 describe("Organisations", () => {
 	before(async function () {
@@ -25,7 +22,7 @@ describe("Organisations", () => {
 	});
 
 	describe("relationships handling", () => {
-		it("it should return the correct relationships for an org", (done) => {
+		it("it should return the correct relationships for an org", async () => {
 			const inputJson = {
 				org_name: "Parent1",
 				daughters: [
@@ -71,24 +68,16 @@ describe("Organisations", () => {
 			];
 
 			// POST organisations
-			chai.request(server)
+			await request(server)
 				.post("/organisations")
 				.send(inputJson)
-				.end((err, res) => {
-					res.should.have.status(201);
-				});
-			// Wait 1 second for the POST to finish before querying
-			setTimeout(function () {
-				// GET organisations
-				chai.request(server)
-					.get("/organisations")
-					.query({ name: "GrandChild4" })
-					.end((err, res) => {
-						res.should.have.status(200);
-						res.body.should.deep.equal(expectedJson);
-						done();
-					});
-			}, 1000);
+				.expect(201);
+			// GET organisations
+			await request(server)
+				.get("/organisations")
+				.query({ name: "GrandChild4" })
+				.expect(200)
+				.then((response) => assert(response.body, expectedJson));
 		});
 	});
 });
