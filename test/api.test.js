@@ -14,11 +14,9 @@ describe("Organisations", () => {
 	});
 
 	after(async function () {
-		await knex("relationships")
-			.del()
-			.then(() => {
-				knex("organistions").del();
-			});
+		await knex("relationships").del().then();
+		await knex("organisations").del().then();
+		await knex.migrate.down();
 	});
 
 	describe("relationships handling", () => {

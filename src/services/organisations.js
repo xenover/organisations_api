@@ -20,6 +20,7 @@ async function insert(item) {
 
 	const parentId = rows[0].id;
 
+	// insert children if any
 	if (daughters && daughters.length > 0) {
 		await insertChildren(parentId, daughters);
 	}
@@ -32,14 +33,14 @@ async function insert(item) {
 // calls handleInsert to add daughter organisations
 async function insertChildren(parentId, daughters) {
 	for (const item of daughters) {
-		// add new organisation and potential daughters
+		// add new organisation and its potential daughters
 		const daughterId = await insert(item);
 
 		// check if relationship already exists
 		const rows = await getChild(daughterId, parentId);
 
+		// not yet, add
 		if (rows.length === 0) {
-			// add relationship
 			await insertChild(daughterId, parentId);
 		}
 	}
