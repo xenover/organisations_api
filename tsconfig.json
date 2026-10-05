@@ -17,6 +17,12 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["server.ts", "knexfile.ts", "src/**/*.ts", "test/**/*.ts", "migrations/**/*.js"],
+  "include": [
+    "server.ts",
+    "knexfile.ts",
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "migrations/**/*.js"
+  ],
   "exclude": ["node_modules", "dist"]
 }
