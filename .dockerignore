@@ -3,3 +3,5 @@ npm-debug.log
 dev.sqlite3
 test
 test.sqlite3
+dist
+.git

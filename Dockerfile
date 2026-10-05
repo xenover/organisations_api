@@ -4,10 +4,6 @@ WORKDIR /usr/src/app
 
 COPY package.json package-lock.json .npmrc ./
 
-COPY knexfile.js ./
-
-COPY migrations/* ./migrations/
-
 # Compile SQLite against this image's libc instead of using an incompatible prebuild.
 RUN --mount=type=secret,id=proxy_ca \
     set -eu; \
@@ -20,10 +16,12 @@ RUN --mount=type=secret,id=proxy_ca \
     apt-get purge -y --auto-remove python3 make g++; \
     rm -rf /var/lib/apt/lists/*
 
-RUN npx knex migrate:latest
-
 COPY . .
+
+RUN npm run build
+
+RUN npx knex --knexfile dist/knexfile.js migrate:latest
 
 EXPOSE 3000
 
-CMD [ "node", "server.js" ]
+CMD [ "node", "dist/server.js" ]

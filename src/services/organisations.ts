@@ -1,10 +1,16 @@
 import knex from "../database/db.js";
+import type {
+	OrganisationInput,
+	OrganisationRecord,
+	OrganisationRelationship,
+	RelationshipRecord,
+} from "../types/organisations.js";
 
 const LIMIT = 100;
 
 // handles organisations creation
 // can be called recursively to add daughters
-async function insert(item) {
+async function insert(item: OrganisationInput): Promise<number> {
 	const { org_name: parentOrgName, daughters } = item;
 
 	// check for existing records
@@ -12,13 +18,17 @@ async function insert(item) {
 
 	if (rows.length === 0) {
 		// add organisation
-		await knex.insert({ name: parentOrgName }).into("organisations").then();
+		await knex<OrganisationRecord>("organisations").insert({ name: parentOrgName });
 	}
 
 	// get newly created parent org
 	rows = await getParent(parentOrgName);
 
-	const parentId = rows[0].id;
+	const parent = rows[0];
+	if (!parent) {
+		throw new Error(`Organisation not found after insertion: ${parentOrgName}`);
+	}
+	const parentId = parent.id;
 
 	// insert children if any
 	if (daughters && daughters.length > 0) {
@@ -31,7 +41,7 @@ async function insert(item) {
 
 // handles relationships creation
 // calls handleInsert to add daughter organisations
-async function insertChildren(parentId, daughters) {
+async function insertChildren(parentId: number, daughters: OrganisationInput[]): Promise<void> {
 	for (const item of daughters) {
 		// add new organisation and its potential daughters
 		const daughterId = await insert(item);
@@ -49,9 +59,9 @@ async function insertChildren(parentId, daughters) {
 // unions 3 different queries - parents, sisters and daughters lookups
 // orders by name (first column from the subquery)
 // does simple pagination using LIMIT and OFFSET based on the page parameter
-async function get(orgName, page = 1) {
+async function get(orgName: string | undefined, page = 1): Promise<OrganisationRelationship[]> {
 	return knex
-		.raw(
+		.raw<OrganisationRelationship[]>(
 			`
 SELECT * FROM (
 	SELECT parent.name as org_name, "parent" as relationship_type
@@ -84,26 +94,24 @@ OFFSET ?;
 		.then();
 }
 
-async function getParent(parentOrgName) {
+async function getParent(parentOrgName: string): Promise<Pick<OrganisationRecord, "id">[]> {
 	return knex
-		.from("organisations")
+		.from<OrganisationRecord>("organisations")
 		.select("id")
 		.where({ name: parentOrgName })
 		.then();
 }
 
-async function getChild(childId, parentId) {
+async function getChild(childId: number, parentId: number): Promise<RelationshipRecord[]> {
 	return knex
-		.from("relationships")
+		.from<RelationshipRecord>("relationships")
 		.where({ child_id: childId, parent_id: parentId })
 		.then();
 }
 
-async function insertChild(childId, parentId) {
-	return knex
-		.insert({ child_id: childId, parent_id: parentId })
-		.into("relationships")
-		.then();
+async function insertChild(childId: number, parentId: number): Promise<number[]> {
+	return knex<RelationshipRecord>("relationships")
+		.insert({ child_id: childId, parent_id: parentId });
 }
 
 export {
