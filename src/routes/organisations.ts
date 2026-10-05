@@ -1,5 +1,12 @@
 import * as service from "../services/organisations.js";
 import type { Express } from "express";
+import type { Query } from "express-serve-static-core";
+import { validate } from "../middleware/validate.js";
+import type { ValidationErrorResponse } from "../middleware/validate.js";
+import {
+  organisationInputSchema,
+  organisationQuerySchema,
+} from "../schemas/organisations.js";
 import type {
   OrganisationInput,
   OrganisationQuery,
@@ -9,20 +16,32 @@ import type {
 const organisationRoutes = (app: Express): void => {
   app.get<
     Record<string, never>,
-    OrganisationRelationship[],
+    OrganisationRelationship[] | ValidationErrorResponse,
     never,
-    OrganisationQuery
-  >("/organisations", async (req, res) => {
-    const { name, page } = req.query;
-    const rows = await service.get(name, page === undefined ? 1 : Number(page));
-    res.status(200);
-    res.send(rows);
-  });
-
-  app.post<Record<string, never>, string, OrganisationInput>(
+    Query,
+    { query: OrganisationQuery }
+  >(
     "/organisations",
-    async (req, res) => {
-      await service.insert(req.body);
+    validate(organisationQuerySchema, "query"),
+    async (_req, res) => {
+      const { name, page } = res.locals.query;
+      const rows = await service.get(name, page);
+      res.status(200);
+      res.send(rows);
+    },
+  );
+
+  app.post<
+    Record<string, never>,
+    string | ValidationErrorResponse,
+    unknown,
+    Query,
+    { body: OrganisationInput }
+  >(
+    "/organisations",
+    validate(organisationInputSchema, "body"),
+    async (_req, res) => {
+      await service.insert(res.locals.body);
       res.status(201);
       res.send("OK");
     },

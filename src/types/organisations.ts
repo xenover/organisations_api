@@ -1,12 +1,7 @@
-export interface OrganisationInput {
-  org_name: string;
-  daughters?: OrganisationInput[];
-}
-
-export interface OrganisationQuery {
-  name?: string;
-  page?: string;
-}
+export type {
+  OrganisationInput,
+  OrganisationQuery,
+} from "../schemas/organisations.js";
 
 export interface OrganisationRecord {
   id: number;
