@@ -13,6 +13,9 @@ Simple JSON API to manage organisations and their relationships
 * Mocha (testing)
 * Chai (testing)
 
+The project uses native ES modules (`import`/`export`). Local imports include
+the `.js` file extension, including the Knex configuration and migrations.
+
 ## APIs
 
 * POST /organisations

@@ -3,7 +3,7 @@
 // another to hold relationships data
 // (child_id -> parent_id - both referenceing organisations table)
 
-exports.up = function (knex) {
+export function up(knex) {
 	return knex.schema
 		.createTable("organisations", function (table) {
 			table.increments("id");
@@ -20,8 +20,8 @@ exports.up = function (knex) {
 				.references("id")
 				.inTable("organisations");
 		});
-};
+}
 
-exports.down = function (knex) {
+export function down(knex) {
 	return knex.schema.dropTable("organisations").dropTable("relationships");
-};
+}

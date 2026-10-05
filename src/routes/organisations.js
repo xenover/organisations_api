@@ -1,4 +1,4 @@
-const service = require("../services/organisations");
+import * as service from "../services/organisations.js";
 
 const organisationRoutes = (app) => {
 	app.get("/organisations", async (req, res) => {
@@ -15,4 +15,4 @@ const organisationRoutes = (app) => {
 	});
 };
 
-module.exports = organisationRoutes;
+export default organisationRoutes;

@@ -1,4 +1,4 @@
-const organisationRoutes = require("./organisations");
+import organisationRoutes from "./organisations.js";
 
 const appRouter = (app) => {
 	app.get("/", (req, res) => {
@@ -8,4 +8,4 @@ const appRouter = (app) => {
 	organisationRoutes(app);
 };
 
-module.exports = appRouter;
+export default appRouter;

@@ -1,14 +1,15 @@
-const express = require("express");
-const bodyParser = require("body-parser");
+import express from "express";
+import bodyParser from "body-parser";
+import appRouter from "./src/routes/index.js";
 
 const app = express();
 
 app.use(bodyParser.json());
 
-require("./src/routes/index.js")(app);
+appRouter(app);
 
 const server = app.listen(3000, () => {
 	console.log("Server started up on port %s", server.address().port);
 });
 
-module.exports = server;
+export default server;
