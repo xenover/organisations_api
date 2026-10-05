@@ -1,4 +1,4 @@
-const knex = require("../database/db.js");
+import knex from "../database/db.js";
 
 const LIMIT = 100;
 
@@ -106,7 +106,7 @@ async function insertChild(childId, parentId) {
 		.then();
 }
 
-module.exports = {
+export {
 	get,
 	insert,
 };

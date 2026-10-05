@@ -1,12 +1,15 @@
+import request from "supertest";
+import assert from "node:assert/strict";
+import knexFactory from "knex";
+import configurations from "../knexfile.js";
+
 process.env.NODE_ENV = "test";
 
-const request = require("supertest");
-const assert = require("assert");
+const config = configurations[process.env.NODE_ENV];
+const knex = knexFactory(config);
 
-const config = require("../knexfile.js")[process.env.NODE_ENV];
-const knex = require("knex")(config);
-
-const server = require("../server");
+// Load the server after setting NODE_ENV so its database uses the test config.
+const { default: server } = await import("../server.js");
 
 describe("Organisations", () => {
 	before(async function () {
@@ -75,7 +78,7 @@ describe("Organisations", () => {
 				.get("/organisations")
 				.query({ name: "GrandChild4" })
 				.expect(200)
-				.then((response) => assert(response.body, expectedJson));
+				.then((response) => assert.deepEqual(response.body, expectedJson));
 		});
 	});
 });
