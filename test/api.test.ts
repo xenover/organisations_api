@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import knexModule from "knex";
 import configurations from "../knexfile.js";
 import { after, before, describe, it } from "mocha";
-import type { OrganisationInput, OrganisationRelationship } from "../src/types/organisations.js";
+import type {
+  OrganisationInput,
+  OrganisationRelationship,
+} from "../src/types/organisations.js";
 
 process.env.NODE_ENV = "test";
 
@@ -14,73 +17,70 @@ const knex = knexModule.knex(config);
 const { default: server } = await import("../server.js");
 
 describe("Organisations", () => {
-	before(async function () {
-		await knex.migrate.up();
-	});
+  before(async function () {
+    await knex.migrate.up();
+  });
 
-	after(async function () {
-		await knex("relationships").del().then();
-		await knex("organisations").del().then();
-		await knex.migrate.down();
-	});
+  after(async function () {
+    await knex("relationships").del().then();
+    await knex("organisations").del().then();
+    await knex.migrate.down();
+  });
 
-	describe("relationships handling", () => {
-		it("it should return the correct relationships for an org", async () => {
-			const inputJson: OrganisationInput = {
-				org_name: "Parent1",
-				daughters: [
-					{
-						org_name: "Child1",
-						daughters: [
-							{
-								org_name: "GrandChild1",
-							},
-						],
-					},
-					{
-						org_name: "Child2",
-						daughters: [
-							{
-								org_name: "GrandChild3",
-							},
-							{
-								org_name: "GrandChild4",
-								daughters: [
-									{
-										org_name: "GreatGrandChild1",
-									},
-								],
-							},
-						],
-					},
-				],
-			};
-			const expectedJson: OrganisationRelationship[] = [
-				{
-					org_name: "Child2",
-					relationship_type: "parent",
-				},
-				{
-					org_name: "GrandChild3",
-					relationship_type: "sister",
-				},
-				{
-					org_name: "GreatGrandChild1",
-					relationship_type: "daughter",
-				},
-			];
+  describe("relationships handling", () => {
+    it("it should return the correct relationships for an org", async () => {
+      const inputJson: OrganisationInput = {
+        org_name: "Parent1",
+        daughters: [
+          {
+            org_name: "Child1",
+            daughters: [
+              {
+                org_name: "GrandChild1",
+              },
+            ],
+          },
+          {
+            org_name: "Child2",
+            daughters: [
+              {
+                org_name: "GrandChild3",
+              },
+              {
+                org_name: "GrandChild4",
+                daughters: [
+                  {
+                    org_name: "GreatGrandChild1",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const expectedJson: OrganisationRelationship[] = [
+        {
+          org_name: "Child2",
+          relationship_type: "parent",
+        },
+        {
+          org_name: "GrandChild3",
+          relationship_type: "sister",
+        },
+        {
+          org_name: "GreatGrandChild1",
+          relationship_type: "daughter",
+        },
+      ];
 
-			// POST organisations
-			await request(server)
-				.post("/organisations")
-				.send(inputJson)
-				.expect(201);
-			// GET organisations
-			await request(server)
-				.get("/organisations")
-				.query({ name: "GrandChild4" })
-				.expect(200)
-				.then((response) => assert.deepEqual(response.body, expectedJson));
-		});
-	});
+      // POST organisations
+      await request(server).post("/organisations").send(inputJson).expect(201);
+      // GET organisations
+      await request(server)
+        .get("/organisations")
+        .query({ name: "GrandChild4" })
+        .expect(200)
+        .then((response) => assert.deepEqual(response.body, expectedJson));
+    });
+  });
 });
