@@ -1,12 +1,14 @@
 import request from "supertest";
 import assert from "node:assert/strict";
-import knexFactory from "knex";
+import knexModule from "knex";
 import configurations from "../knexfile.js";
+import { after, before, describe, it } from "mocha";
+import type { OrganisationInput, OrganisationRelationship } from "../src/types/organisations.js";
 
 process.env.NODE_ENV = "test";
 
-const config = configurations[process.env.NODE_ENV];
-const knex = knexFactory(config);
+const config = configurations.test;
+const knex = knexModule.knex(config);
 
 // Load the server after setting NODE_ENV so its database uses the test config.
 const { default: server } = await import("../server.js");
@@ -24,7 +26,7 @@ describe("Organisations", () => {
 
 	describe("relationships handling", () => {
 		it("it should return the correct relationships for an org", async () => {
-			const inputJson = {
+			const inputJson: OrganisationInput = {
 				org_name: "Parent1",
 				daughters: [
 					{
@@ -53,7 +55,7 @@ describe("Organisations", () => {
 					},
 				],
 			};
-			const expectedJson = [
+			const expectedJson: OrganisationRelationship[] = [
 				{
 					org_name: "Child2",
 					relationship_type: "parent",

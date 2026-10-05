@@ -1,7 +1,8 @@
 import organisationRoutes from "./organisations.js";
+import type { Express } from "express";
 
-const appRouter = (app) => {
-	app.get("/", (req, res) => {
+const appRouter = (app: Express): void => {
+	app.get("/", (_req, res) => {
 		res.send("Nothing here");
 	});
 

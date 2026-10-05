@@ -9,12 +9,15 @@ Simple JSON API to manage organisations and their relationships
 * Knex (DB connection & queries)
 * SQLite (DB)
 * Body parser (JSON parsing)
-* Node.js watch mode (development reloads)
+* TypeScript (strict type checking)
+* tsx (TypeScript development reloads)
 * Mocha (testing)
 * Chai (testing)
 
 The project uses native ES modules (`import`/`export`). Local imports include
-the `.js` file extension, including the Knex configuration and migrations.
+the `.js` file extension so emitted JavaScript runs directly in Node.js. Source
+files use TypeScript; the historical JavaScript migration keeps its filename for
+compatibility with existing migration records and is checked by TypeScript.
 
 ## APIs
 
@@ -41,10 +44,23 @@ the `.js` file extension, including the Knex configuration and migrations.
 ## Build steps
 
 * npm ci
-* npx knex migrate:latest
+* npm run migrate
+* npm run build
 * npm start
 
-For development with automatic reloads, use `npm run dev`.
+For development with automatic reloads, use `npm run dev`. It executes
+`server.ts` directly. `npm start` runs the compiled `dist/server.js` after a build.
+
+## TypeScript and database commands
+
+* `npm run typecheck` - check application, tests, configuration, and migrations
+* `npm run build` - compile application and migrations to `dist/` (excluding tests)
+* `npm run migrate` - run migrations using the TypeScript configuration
+* `npm run migrate:rollback` - roll back the latest batch
+
+The build emits the Knex configuration and historical migration into `dist/`.
+For a deployment using compiled files, run
+`npx knex --knexfile dist/knexfile.js migrate:latest` before `npm start`.
 
 `npm ci` installs the exact dependencies from `package-lock.json`. The `.npmrc`
 configuration rejects unsupported Node.js/npm versions and makes `npm audit`
@@ -54,9 +70,13 @@ fail for high or critical vulnerabilities. Run `npm audit` to check dependencies
 
 * ./node_modules/.bin/eslint .
 
+The existing ESLint configuration checks the JavaScript migration. Run
+`npm run typecheck` for TypeScript; TypeScript-aware ESLint integration is planned
+in issue #73.
+
 ## Testing
 
-* npm test
+* npm test (runs TypeScript tests through tsx)
 
 ## Docker setup
 
