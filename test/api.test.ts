@@ -1,5 +1,5 @@
 import request from "supertest";
-import assert from "node:assert/strict";
+import { expect } from "chai";
 import knexModule from "knex";
 import configurations from "../knexfile.js";
 import { after, before, describe, it } from "mocha";
@@ -80,7 +80,7 @@ describe("Organisations", () => {
         .get("/organisations")
         .query({ name: "GrandChild4" })
         .expect(200)
-        .then((response) => assert.deepEqual(response.body, expectedJson));
+        .then((response) => expect(response.body).to.deep.equal(expectedJson));
     });
   });
 });

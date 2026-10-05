@@ -68,6 +68,11 @@ async function get(
   orgName: string | undefined,
   page = 1,
 ): Promise<OrganisationRelationship[]> {
+  // Knex rejects undefined bindings; narrow the name before constructing the query.
+  if (orgName === undefined) {
+    throw new Error("Organisation name is required");
+  }
+
   return knex
     .raw<OrganisationRelationship[]>(
       `

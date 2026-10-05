@@ -1,11 +1,10 @@
 import express from "express";
-import bodyParser from "body-parser";
 import appRouter from "./src/routes/index.js";
 import type { Server } from "node:http";
 
 const app = express();
 
-app.use(bodyParser.json());
+app.use(express.json());
 
 appRouter(app);
 

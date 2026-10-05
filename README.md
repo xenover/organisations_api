@@ -5,14 +5,13 @@ Simple JSON API to manage organisations and their relationships
 ## Technologies used
 
 - NodeJS
-- Express (HTTP)
+- Express (HTTP and JSON parsing)
 - Knex (DB connection & queries)
 - SQLite (DB)
-- Body parser (JSON parsing)
 - TypeScript (strict type checking)
 - tsx (TypeScript development reloads)
 - Mocha (testing)
-- Chai (testing)
+- Chai and Supertest (testing)
 
 The project uses native ES modules (`import`/`export`). Local imports include
 the `.js` file extension so emitted JavaScript runs directly in Node.js. Source
@@ -37,7 +36,7 @@ compatibility with existing migration records and is checked by TypeScript.
 ## Prerequisits
 
 - Docker installed
-- Node.js 20.x (20.19+) or 22.12+ installed (npm 10+ required)
+- Node.js 20.x (20.19+), 22.x (22.13+), or 24+ installed (npm 10+ required)
 - The recommended Node.js version is pinned in `.nvmrc`. With nvm installed, run
   `nvm install` and `nvm use` from the repository root.
 
@@ -66,6 +65,14 @@ For a deployment using compiled files, run
 configuration rejects unsupported Node.js/npm versions and makes `npm audit`
 fail for high or critical vulnerabilities. Run `npm audit` to check dependencies.
 
+Express provides JSON parsing through `express.json()`; no separate application
+dependency on `body-parser` is needed. Knex and SQLite3 include their own TypeScript
+definitions. Mocha, Chai, and Supertest are development dependencies.
+
+ESLint 10 requires Node.js 22.13+ on the 22.x line; Node.js 20.19+ remains supported.
+The project retains lint-staged 16 for Node.js 20 compatibility and TypeScript 6.0
+for compatibility with typescript-eslint's supported compiler range.
+
 ## Linting and formatting
 
 - `npm run lint` - check JavaScript and TypeScript with ESLint; warnings fail the check
@@ -73,7 +80,7 @@ fail for high or critical vulnerabilities. Run `npm audit` to check dependencies
 - `npm run format` - format supported source, configuration, and documentation files
 - `npm run format:check` - check formatting without changing files
 
-`eslint.config.js` uses ESLint 9's flat configuration, recommended JavaScript
+`eslint.config.js` uses ESLint 10's flat configuration, recommended JavaScript
 and TypeScript rules, and Node.js globals. `eslint-config-prettier` disables
 formatting rules that would conflict with Prettier. Run `npm run typecheck`
 separately for TypeScript's strict compiler checks.
