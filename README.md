@@ -36,8 +36,8 @@ compatibility with existing migration records and is checked by TypeScript.
 ## Prerequisits
 
 - Docker installed
-- Node.js 20.x (20.19+), 22.x (22.13+), or 24+ installed (npm 10+ required)
-- The recommended Node.js version is pinned in `.nvmrc`. With nvm installed, run
+- Node.js 24 LTS installed (npm 10+ required)
+- Node.js 24.21.0 is pinned in `.nvmrc` and the Docker image. With nvm installed, run
   `nvm install` and `nvm use` from the repository root.
 
 ## Build steps
@@ -69,9 +69,9 @@ Express provides JSON parsing through `express.json()`; no separate application
 dependency on `body-parser` is needed. Knex and SQLite3 include their own TypeScript
 definitions. Mocha, Chai, and Supertest are development dependencies.
 
-ESLint 10 requires Node.js 22.13+ on the 22.x line; Node.js 20.19+ remains supported.
-The project retains lint-staged 16 for Node.js 20 compatibility and TypeScript 6.0
-for compatibility with typescript-eslint's supported compiler range.
+The project supports the Node.js 24 LTS line; `engines` rejects other Node.js major
+versions. Node's TypeScript definitions use the same major version. TypeScript
+stays on 6.0 for compatibility with typescript-eslint's supported compiler range.
 
 ## Linting and formatting
 
