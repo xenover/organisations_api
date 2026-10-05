@@ -3,3 +3,6 @@ dev.sqlite3
 test.sqlite3
 .dccache
 dist/
+.env
+.env.*
+!.env.example

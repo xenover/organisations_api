@@ -5,3 +5,6 @@ test
 test.sqlite3
 dist
 .git
+.env
+.env.*
+!.env.example

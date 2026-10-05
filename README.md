@@ -12,6 +12,10 @@ Simple JSON API to manage organisations and their relationships
 - tsx (TypeScript development reloads)
 - Mocha (testing)
 - Chai and Supertest (testing)
+- dotenv (local environment files)
+- Zod (configuration and request validation)
+- Pino (JSON logging)
+- Helmet (HTTP security headers)
 
 The project uses native ES modules (`import`/`export`). Local imports include
 the `.js` file extension so emitted JavaScript runs directly in Node.js. Source
@@ -23,12 +27,12 @@ compatibility with existing migration records and is checked by TypeScript.
 - POST /organisations
   - Handles organisations and their relationships creation
   - Takes in a JSON body
-  - Outputs the same JSON body
+  - Returns `201` with `OK`
 - GET /organisations
   - Handles organisations and their relationships lookup
   - Parameters
-    - name - string, name of the organisation
-    - page - int, for pagination
+    - name - required nonblank string, name of the organisation
+    - page - positive integer, defaults to 1
   - Returns JSON array of all the organisations and how they relate to the one in question
 
 # Setup
@@ -72,6 +76,61 @@ definitions. Mocha, Chai, and Supertest are development dependencies.
 The project supports the Node.js 24 LTS line; `engines` rejects other Node.js major
 versions. Node's TypeScript definitions use the same major version. TypeScript
 stays on 6.0 for compatibility with typescript-eslint's supported compiler range.
+
+## Environment configuration
+
+Copy `.env.example` to `.env` to customize the local setup. `npm run dev`,
+`npm start`, and the migration commands load these files automatically through
+`src/config/env.ts`, including when using compiled files or running from another
+working directory.
+
+| Variable    | Default                                   | Accepted values                                                 |
+| ----------- | ----------------------------------------- | --------------------------------------------------------------- |
+| `NODE_ENV`  | `development`                             | `development` or `test`                                         |
+| `PORT`      | `3000`                                    | Integer from 0 to 65535; 0 chooses an available port            |
+| `LOG_LEVEL` | `debug` in development, `silent` in tests | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent` |
+
+The mode is selected from the process's `NODE_ENV`, then `.env`, then the default.
+Values from `.env.development` or `.env.test` override `.env`; externally supplied
+environment variables take priority over both files. Missing files are optional;
+invalid settings or unreadable files fail at startup. Local environment files
+are excluded from Git and Docker builds; `.env.example` is the tracked template.
+
+`npm test` selects test mode before importing application configuration and uses
+an available port by default. It continues to use the separate test database.
+The application supports local development and testing only.
+
+## Validation, logging, and headers
+
+Zod schemas in `src/schemas/organisations.ts` validate request bodies and queries
+before database operations. Organisation names must be nonblank strings; daughters
+must be an array of organisations following the same schema recursively. Names
+retain their original whitespace. Query `page` must be a positive integer in
+decimal notation. Invalid requests return `400` with field-level details:
+
+```json
+{
+  "error": "Invalid request",
+  "issues": [
+    {
+      "path": "body.daughters.0.org_name",
+      "message": "Organisation name must not be blank"
+    }
+  ]
+}
+```
+
+Validated values are stored in response locals, keeping Express 5's query getter
+intact. Request types are inferred from the schemas.
+
+`src/utils/logger.ts` exports the shared Pino logger. Logs are JSON in every mode;
+the startup record includes the actual listening port. `LOG_LEVEL` controls
+verbosity, and `silent` disables logs.
+
+Helmet applies security headers before JSON parsing and routing, including to
+error responses, and removes `X-Powered-By`. HSTS and automatic HTTPS upgrades are
+disabled for this local HTTP application. Rate limiting remains optional for a
+future change.
 
 ## Linting and formatting
 
