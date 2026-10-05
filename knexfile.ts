@@ -9,13 +9,21 @@ const migrations: Knex.MigratorConfig = {
   loadExtensions: [".js"],
 };
 
-const configurations: Record<"development" | "test", Knex.Config> = {
+const configurations: Record<"development" | "production" | "test", Knex.Config> = {
   development: {
     client: 'sqlite3',
     useNullAsDefault: true,
     migrations,
     connection: {
       filename: fileURLToPath(new URL("dev.sqlite3", projectRoot)),
+    },
+  },
+  production: {
+    client: 'sqlite3',
+    useNullAsDefault: true,
+    migrations,
+    connection: {
+      filename: fileURLToPath(new URL("prod.sqlite3", projectRoot)),
     },
   },
   test: {

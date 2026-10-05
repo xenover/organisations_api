@@ -41,15 +41,35 @@ compatibility with existing migration records and is checked by TypeScript.
 * The recommended Node.js version is pinned in `.nvmrc`. With nvm installed, run
   `nvm install` and `nvm use` from the repository root.
 
-## Build steps
+## Development
 
-* npm ci
-* npm run migrate
-* npm run build
-* npm start
+```sh
+npm ci
+npm run migrate
+npm run dev
+```
 
-For development with automatic reloads, use `npm run dev`. It executes
-`server.ts` directly. `npm start` runs the compiled `dist/server.js` after a build.
+`npm run dev` executes `server.ts` through tsx and restarts when source files
+change. Run `npm run typecheck` to check types; tsx executes without type checking.
+
+## Production
+
+```sh
+npm ci
+npm run build
+npm run migrate:production
+npm start
+```
+
+`npm start` defaults `NODE_ENV` to `production` before loading the compiled
+`dist/server.js`. An explicitly set `NODE_ENV` takes precedence. The startup
+wrapper uses Node.js directly, so it runs with production dependencies only.
+
+Development uses `dev.sqlite3`, production uses `prod.sqlite3`, and tests use
+`test.sqlite3`. The production migration command initializes the production
+database after a build. If an existing deployment stores production data in
+`dev.sqlite3`, copy that database to `prod.sqlite3` while the server is stopped,
+before running `npm run migrate:production` and switching startup commands.
 
 ## TypeScript and database commands
 
@@ -57,10 +77,13 @@ For development with automatic reloads, use `npm run dev`. It executes
 * `npm run build` - compile application and migrations to `dist/` (excluding tests)
 * `npm run migrate` - run migrations using the TypeScript configuration
 * `npm run migrate:rollback` - roll back the latest batch
+* `npm run migrate:production` - migrate the production database using compiled files
 
 The build emits the Knex configuration and historical migration into `dist/`.
 For a deployment using compiled files, run
-`npx knex --knexfile dist/knexfile.js migrate:latest` before `npm start`.
+`npm run migrate:production` before `npm start`. After building, development
+dependencies can be omitted from the deployed installation with
+`npm ci --omit=dev`; migrations and startup use compiled JavaScript.
 
 `npm ci` installs the exact dependencies from `package-lock.json`. The `.npmrc`
 configuration rejects unsupported Node.js/npm versions and makes `npm audit`

@@ -20,6 +20,8 @@ COPY . .
 
 RUN npm run build
 
+ENV NODE_ENV=production
+
 RUN npx knex --knexfile dist/knexfile.js migrate:latest
 
 EXPOSE 3000
