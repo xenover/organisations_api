@@ -9,7 +9,7 @@ Simple JSON API to manage organisations and their relationships
 * Knex (DB connection & queries)
 * SQLite (DB)
 * Body parser (JSON parsing)
-* Nodemon (dev tool for convenience)
+* Node.js watch mode (development reloads)
 * Mocha (testing)
 * Chai (testing)
 
@@ -31,13 +31,21 @@ Simple JSON API to manage organisations and their relationships
 ## Prerequisits
 
 * Docker installed
-* NodeJS installed
+* Node.js 20.x (20.19+) or 22.12+ installed (npm 10+ required)
+* The recommended Node.js version is pinned in `.nvmrc`. With nvm installed, run
+  `nvm install` and `nvm use` from the repository root.
 
 ## Build steps
 
-* npm install
+* npm ci
 * npx knex migrate:latest
 * npm start
+
+For development with automatic reloads, use `npm run dev`.
+
+`npm ci` installs the exact dependencies from `package-lock.json`. The `.npmrc`
+configuration rejects unsupported Node.js/npm versions and makes `npm audit`
+fail for high or critical vulnerabilities. Run `npm audit` to check dependencies.
 
 ## Linting
 
