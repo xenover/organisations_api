@@ -16,7 +16,7 @@ Keep `package.json`'s Node engine and Node types consistent with that policy.
 Review compatibility between TypeScript and typescript-eslint when updating them;
 keep Actions pinned to commit SHAs with matching version comments.
 
-Run the [contributor checks](../CONTRIBUTING.md#development-checks), inspect the
+Run the [existing CI checks](../README.md#continuous-integration), inspect the
 lockfile and release notes, and address the high/critical audit result before
 merging. For a Docker update, build and verify migration, readiness, persistence,
 and stopping using the [local container workflow](operations.md#docker-setup).
