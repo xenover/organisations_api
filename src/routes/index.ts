@@ -1,4 +1,5 @@
 import organisationRoutes from "./organisations.js";
+import operationRoutes from "./operations.js";
 import type { Express } from "express";
 import swaggerUi from "swagger-ui-express";
 import { openApiDocument } from "../docs/openapi.js";
@@ -63,6 +64,7 @@ const appRouter = (app: Express): void => {
     }),
   );
   organisationRoutes(app);
+  operationRoutes(app);
 };
 
 export default appRouter;

@@ -18,6 +18,12 @@ const environmentSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .optional(),
+  SHUTDOWN_TIMEOUT_MS: z
+    .string()
+    .regex(/^\d+$/, "Shutdown timeout must be an integer from 1 to 60000")
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(60000))
+    .default(10000),
 });
 
 export function loadEnvironment(

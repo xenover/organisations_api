@@ -25,6 +25,7 @@ describe("Environment configuration", () => {
       NODE_ENV: "development",
       PORT: 3000,
       LOG_LEVEL: "debug",
+      SHUTDOWN_TIMEOUT_MS: 10000,
     });
   });
 
@@ -48,12 +49,14 @@ describe("Environment configuration", () => {
       NODE_ENV: "test",
       PORT: 4200,
       LOG_LEVEL: "trace",
+      SHUTDOWN_TIMEOUT_MS: 10000,
     });
     const external = { PORT: "4300", LOG_LEVEL: "warn" };
     expect(loadEnvironment(root, external)).to.deep.equal({
       NODE_ENV: "test",
       PORT: 4300,
       LOG_LEVEL: "warn",
+      SHUTDOWN_TIMEOUT_MS: 10000,
     });
     expect(external).to.deep.equal({ PORT: "4300", LOG_LEVEL: "warn" });
   });
@@ -66,12 +69,16 @@ describe("Environment configuration", () => {
       NODE_ENV: "test",
       PORT: 4300,
       LOG_LEVEL: "silent",
+      SHUTDOWN_TIMEOUT_MS: 10000,
     });
   });
 
   for (const invalid of [
     { NODE_ENV: "production" },
     { LOG_LEVEL: "verbose" },
+    ...["", "0", "-1", "1.5", "60001", "abc"].map((SHUTDOWN_TIMEOUT_MS) => ({
+      SHUTDOWN_TIMEOUT_MS,
+    })),
     ...["", "-1", "1.5", "65536", "abc"].map((PORT) => ({ PORT })),
   ]) {
     it(`rejects invalid settings ${JSON.stringify(invalid)}`, () => {

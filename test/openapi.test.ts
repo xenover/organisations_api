@@ -14,7 +14,9 @@ describe("OpenAPI documentation", () => {
     const spec = await SwaggerParser.validate(structuredClone(response.body));
     expect(Object.keys(spec.paths ?? {}).sort()).to.deep.equal([
       "/",
+      "/health",
       "/organisations",
+      "/ready",
       "/swagger",
       "/swagger.json",
       "/swagger/",

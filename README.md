@@ -101,11 +101,12 @@ Copy `.env.example` to `.env` to customize the local setup. `npm run dev`,
 `src/config/env.ts`, including when using compiled files or running from another
 working directory.
 
-| Variable    | Default                                   | Accepted values                                                 |
-| ----------- | ----------------------------------------- | --------------------------------------------------------------- |
-| `NODE_ENV`  | `development`                             | `development` or `test`                                         |
-| `PORT`      | `3000`                                    | Integer from 0 to 65535; 0 chooses an available port            |
-| `LOG_LEVEL` | `debug` in development, `silent` in tests | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent` |
+| Variable              | Default                                   | Accepted values                                                    |
+| --------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
+| `NODE_ENV`            | `development`                             | `development` or `test`                                            |
+| `PORT`                | `3000`                                    | Integer from 0 to 65535; 0 chooses an available port               |
+| `LOG_LEVEL`           | `debug` in development, `silent` in tests | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`    |
+| `SHUTDOWN_TIMEOUT_MS` | `10000`                                   | Integer from 1 to 60000; bounds HTTP draining and database cleanup |
 
 The mode is selected from the process's `NODE_ENV`, then `.env`, then the default.
 Values from `.env.development` or `.env.test` override `.env`; externally supplied
@@ -116,6 +117,22 @@ are excluded from Git and Docker builds; `.env.example` is the tracked template.
 `npm test` selects test mode before importing application configuration and uses
 an available port by default. It continues to use the separate test database.
 The application supports local development and testing only.
+
+## Liveness, readiness, and shutdown
+
+`GET /health` returns `200 {"status":"ok"}` while the HTTP app is running,
+without querying SQLite. `GET /ready` reads the required columns of both
+application tables and returns `200 {"status":"ready"}` if usable, or
+`503 {"status":"not_ready"}` if the database or schema is unavailable. Each
+query has a one-second timeout. Neither probe changes data; failure responses
+contain no SQL, file paths, or internal errors. Both appear in Swagger.
+
+On SIGTERM or SIGINT, the server stops accepting connections, drains in-flight
+requests, closes Knex, and exits naturally. Repeated signals during draining are
+ignored. `SHUTDOWN_TIMEOUT_MS` bounds the whole shutdown (10 seconds by default).
+If the deadline expires or cleanup fails, connections are forced closed and the
+process exits with status 1; forced shutdown can interrupt active work. The
+server logs shutdown start, completion, failure, or timeout events.
 
 ## Validation, logging, and headers
 
