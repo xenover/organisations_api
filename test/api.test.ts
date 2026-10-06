@@ -38,6 +38,38 @@ describe("Organisations", () => {
     }
   });
 
+  describe("Operational probes", () => {
+    it("reports liveness and readiness with the migrated schema", async () => {
+      await request(app).get("/health").expect(200, { status: "ok" });
+      await request(app).get("/ready").expect(200, { status: "ready" });
+    });
+
+    for (const table of ["organisations", "relationships"]) {
+      it(`keeps liveness available but returns safe 503 when ${table} is missing`, async () => {
+        await knex.schema.renameTable(table, `${table}_unavailable`);
+        try {
+          await request(app).get("/ready").expect(503, { status: "not_ready" });
+          await request(app).get("/health").expect(200, { status: "ok" });
+        } finally {
+          await knex.schema.renameTable(`${table}_unavailable`, table);
+        }
+      });
+    }
+
+    it("rejects a schema that lacks a required relationship column", async () => {
+      await knex.schema.alterTable("relationships", (table) =>
+        table.renameColumn("child_id", "wrong_child"),
+      );
+      try {
+        await request(app).get("/ready").expect(503, { status: "not_ready" });
+      } finally {
+        await knex.schema.alterTable("relationships", (table) =>
+          table.renameColumn("wrong_child", "child_id"),
+        );
+      }
+    });
+  });
+
   describe("relationships handling", () => {
     it("it should return the correct relationships for an org", async () => {
       const inputJson: OrganisationInput = {

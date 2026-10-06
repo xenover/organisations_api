@@ -25,7 +25,30 @@ describe("Environment configuration", () => {
       NODE_ENV: "development",
       PORT: 3000,
       LOG_LEVEL: "debug",
+      SHUTDOWN_TIMEOUT_MS: 10000,
+      CORS_ORIGINS: [],
     });
+  });
+
+  it("accepts an explicit SQLite path and shutdown deadline", () => {
+    const settings = loadEnvironment(root, {
+      SQLITE_FILENAME: "/tmp/demo.sqlite3",
+      SHUTDOWN_TIMEOUT_MS: "2500",
+    });
+    expect(settings.SQLITE_FILENAME).to.equal("/tmp/demo.sqlite3");
+    expect(settings.SHUTDOWN_TIMEOUT_MS).to.equal(2500);
+  });
+
+  it("parses a comma-separated CORS allow-list and ignores unsupported secret variables", () => {
+    const settings = loadEnvironment(root, {
+      CORS_ORIGINS: "http://localhost:5173, https://example.com",
+      DEMO_SECRET: "harmless-test-placeholder",
+    });
+    expect(settings.CORS_ORIGINS).to.deep.equal([
+      "http://localhost:5173",
+      "https://example.com",
+    ]);
+    expect(settings).not.to.have.property("DEMO_SECRET");
   });
 
   it("fails on unreadable environment files instead of falling back to defaults", () => {
@@ -48,12 +71,16 @@ describe("Environment configuration", () => {
       NODE_ENV: "test",
       PORT: 4200,
       LOG_LEVEL: "trace",
+      SHUTDOWN_TIMEOUT_MS: 10000,
+      CORS_ORIGINS: [],
     });
     const external = { PORT: "4300", LOG_LEVEL: "warn" };
     expect(loadEnvironment(root, external)).to.deep.equal({
       NODE_ENV: "test",
       PORT: 4300,
       LOG_LEVEL: "warn",
+      SHUTDOWN_TIMEOUT_MS: 10000,
+      CORS_ORIGINS: [],
     });
     expect(external).to.deep.equal({ PORT: "4300", LOG_LEVEL: "warn" });
   });
@@ -66,12 +93,28 @@ describe("Environment configuration", () => {
       NODE_ENV: "test",
       PORT: 4300,
       LOG_LEVEL: "silent",
+      SHUTDOWN_TIMEOUT_MS: 10000,
+      CORS_ORIGINS: [],
     });
   });
 
   for (const invalid of [
     { NODE_ENV: "production" },
     { LOG_LEVEL: "verbose" },
+    { SQLITE_FILENAME: " " },
+    ...[
+      "*",
+      "null",
+      "invalid",
+      "file:///tmp",
+      "http://localhost:3000/",
+      "https://user:password@example.com",
+      "https://example.com/path",
+      "https://example.com,",
+    ].map((CORS_ORIGINS) => ({ CORS_ORIGINS })),
+    ...["", "0", "-1", "1.5", "60001", "abc"].map((SHUTDOWN_TIMEOUT_MS) => ({
+      SHUTDOWN_TIMEOUT_MS,
+    })),
     ...["", "-1", "1.5", "65536", "abc"].map((PORT) => ({ PORT })),
   ]) {
     it(`rejects invalid settings ${JSON.stringify(invalid)}`, () => {

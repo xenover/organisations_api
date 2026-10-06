@@ -7,8 +7,25 @@ export const projectRoot = new URL(
   import.meta.url,
 );
 
+const corsOrigin = z.string().refine((value) => {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && url.origin === value;
+  } catch {
+    return false;
+  }
+}, "Use an exact HTTP(S) origin without a path, credentials, trailing slash, or wildcard");
+
 const environmentSchema = z.object({
   NODE_ENV: z.enum(["development", "test"]).default("development"),
+  SQLITE_FILENAME: z.string().trim().min(1).optional(),
+  CORS_ORIGINS: z
+    .string()
+    .default("")
+    .transform((value) =>
+      value.trim() ? value.split(",").map((origin) => origin.trim()) : [],
+    )
+    .pipe(z.array(corsOrigin)),
   PORT: z
     .string()
     .regex(/^\d+$/, "Port must be an integer between 0 and 65535")
@@ -18,6 +35,12 @@ const environmentSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .optional(),
+  SHUTDOWN_TIMEOUT_MS: z
+    .string()
+    .regex(/^\d+$/, "Shutdown timeout must be an integer from 1 to 60000")
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(60000))
+    .default(10000),
 });
 
 export function loadEnvironment(

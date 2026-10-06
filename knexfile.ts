@@ -1,6 +1,10 @@
 import type { Knex } from "knex";
 import { fileURLToPath } from "node:url";
-import { projectRoot } from "./src/config/env.js";
+import { env, projectRoot } from "./src/config/env.js";
+import { resolve } from "node:path";
+
+const databaseFile = (fallback: string) =>
+  resolve(fileURLToPath(projectRoot), env.SQLITE_FILENAME ?? fallback);
 
 const migrations: Knex.MigratorConfig = {
   directory: fileURLToPath(new URL("./migrations/", import.meta.url)),
@@ -13,7 +17,7 @@ const configurations: Record<"development" | "test", Knex.Config> = {
     useNullAsDefault: true,
     migrations,
     connection: {
-      filename: fileURLToPath(new URL("dev.sqlite3", projectRoot)),
+      filename: databaseFile("dev.sqlite3"),
     },
   },
   test: {
@@ -21,7 +25,7 @@ const configurations: Record<"development" | "test", Knex.Config> = {
     useNullAsDefault: true,
     migrations,
     connection: {
-      filename: fileURLToPath(new URL("test.sqlite3", projectRoot)),
+      filename: databaseFile("test.sqlite3"),
     },
   },
 };
