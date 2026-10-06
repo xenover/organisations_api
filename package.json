@@ -15,12 +15,14 @@
     "typecheck": "tsc --noEmit",
     "migrate": "tsx ./node_modules/knex/bin/cli.js --knexfile knexfile.ts migrate:latest",
     "migrate:rollback": "tsx ./node_modules/knex/bin/cli.js --knexfile knexfile.ts migrate:rollback",
-    "test": "node --import tsx --import ./test/setup.ts ./node_modules/mocha/bin/mocha.js --timeout 10000 --exit \"test/**/*.test.ts\"",
+    "test": "node --import tsx --import ./test/setup.ts ./node_modules/mocha/bin/mocha.js --timeout 10000 \"test/**/*.test.ts\"",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:watch": "tsx watch --clear-screen=false --include \"test/**/*.ts\" --include \"src/**/*.ts\" --include \"migrations/**/*.js\" --include knexfile.ts --import ./test/setup.ts ./node_modules/mocha/bin/mocha.js --timeout 10000 \"test/**/*.test.ts\"",
+    "test:debug": "node --inspect-brk --import tsx --import ./test/setup.ts ./node_modules/mocha/bin/mocha.js --timeout 0 \"test/**/*.test.ts\""
   },
   "author": "Taavi Kala",
   "license": "ISC",
