@@ -106,7 +106,9 @@ Zod schemas in `src/schemas/organisations.ts` validate request bodies and querie
 before database operations. Organisation names must be nonblank strings; daughters
 must be an array of organisations following the same schema recursively. Names
 retain their original whitespace. Query `page` must be a positive integer in
-decimal notation. Invalid requests return `400` with field-level details:
+decimal notation and defaults to `1` when omitted. Unknown object keys are
+discarded from the parsed body (including daughters) and query. Invalid requests
+return `400` with field-level details:
 
 ```json
 {
@@ -128,6 +130,9 @@ decimal notation. Invalid requests return `400` with field-level details:
 
 Validated values are stored in response locals, keeping Express 5's query getter
 intact. Request types are inferred from the schemas.
+The validation middleware carries each schema's output type into the handler's
+locals, including the numeric page default and conversion. Raw request values
+are left intact; handlers consume the parsed values.
 
 `src/utils/logger.ts` exports the shared Pino logger. Logs are JSON in every mode;
 the startup record includes the actual listening port. `LOG_LEVEL` controls
