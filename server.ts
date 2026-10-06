@@ -6,8 +6,10 @@ import { env } from "./src/config/env.js";
 import { logger } from "./src/utils/logger.js";
 import { NotFoundError } from "./src/errors/index.js";
 import { errorHandler } from "./src/middleware/error-handler.js";
+import { requestLogger } from "./src/middleware/request-logger.js";
 
 const app = express();
+app.use(requestLogger);
 
 app.use(
   helmet({

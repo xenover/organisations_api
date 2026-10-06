@@ -16,6 +16,8 @@ Simple JSON API to manage organisations and their relationships
 - Zod (configuration and request validation)
 - Pino (JSON logging)
 - Helmet (HTTP security headers)
+- Swagger UI and swagger-jsdoc (interactive OpenAPI documentation)
+- express-rate-limit (local mutation request budgets)
 
 The project uses native ES modules (`import`/`export`). Local imports include
 the `.js` file extension so emitted JavaScript runs directly in Node.js. Source
@@ -24,16 +26,53 @@ compatibility with existing migration records and is checked by TypeScript.
 
 ## APIs
 
-- POST /organisations
-  - Handles organisations and their relationships creation
-  - Takes in a JSON body
-  - Returns `201` with `OK`
-- GET /organisations
-  - Handles organisations and their relationships lookup
-  - Parameters
-    - name - required nonblank string, name of the organisation
-    - page - positive integer, defaults to 1
-  - Returns JSON array of all the organisations and how they relate to the one in question
+Interactive OpenAPI documentation and examples are available at
+[http://localhost:3000/swagger](http://localhost:3000/swagger). The generated
+specification is at [http://localhost:3000/swagger.json](http://localhost:3000/swagger.json).
+Route JSDoc comments and `src/docs/openapi.ts` generate the same document for
+source and compiled runs.
+
+| Method | Path                               | Behavior                                                   |
+| ------ | ---------------------------------- | ---------------------------------------------------------- |
+| POST   | `/organisations`                   | Create or merge a recursive organisation tree              |
+| GET    | `/organisations?name=Child`        | Look up parent, sister, and daughter relationships by name |
+| GET    | `/organisations/:id`               | Get one organisation                                       |
+| PATCH  | `/organisations/:id`               | Rename an organisation with `{ "org_name": "New name" }`   |
+| DELETE | `/organisations/:id`               | Delete the organisation and its relationship links         |
+| GET    | `/organisations/:id/relationships` | Look up relationships by organisation ID                   |
+
+POST reuses existing names and relationship links. It returns `201` and a
+`Location` header for a new root, or `200` when merging into an existing root.
+The whole tree is written in one transaction. PATCH preserves relationships and
+returns `409` if another organisation already has the requested name. Only
+`org_name` is accepted in PATCH; it does not edit the tree. DELETE returns `200`
+with the deleted organisation; related organisations remain. Valid IDs that do
+not exist return `404`. Invalid IDs and fields return `400`.
+
+Successes use a JSON envelope, for example:
+
+```json
+{ "data": { "id": 1, "org_name": "Parent" } }
+```
+
+Relationship lists include pagination metadata:
+
+```json
+{
+  "data": [{ "org_name": "Parent", "relationship_type": "parent" }],
+  "pagination": { "limit": 100, "offset": 0, "total_count": 1 }
+}
+```
+
+`limit` is a positive integer up to 100 (default 100); `offset` is a nonnegative
+integer (default 0). The legacy `page` parameter is also supported and computes
+`offset = (page - 1) * limit`. Use either `page` or `offset`; combining them returns
+`400`. Relationships are sorted by name and relationship type. `total_count` counts all
+matching relationships before pagination, including when the requested page is
+empty. Unknown names return an empty list; unknown IDs return `404`.
+
+These response formats replace the earlier POST `OK` text and bare GET array.
+Clients should read `data` and, for lists, `pagination`.
 
 # Setup
 
@@ -105,8 +144,8 @@ The application supports local development and testing only.
 Zod schemas in `src/schemas/organisations.ts` validate request bodies and queries
 before database operations. Organisation names must be nonblank strings; daughters
 must be an array of organisations following the same schema recursively. Names
-retain their original whitespace. Query `page` must be a positive integer in
-decimal notation and defaults to `1` when omitted. Unknown object keys are
+retain their original whitespace. Query `page` and `limit` use positive decimal integers; `offset` uses a nonnegative
+decimal integer. Pagination defaults to the first 100 results. Unknown object keys are
 discarded from the parsed body (including daughters) and query. Invalid requests
 return `400` with field-level details:
 
@@ -136,29 +175,33 @@ are left intact; handlers consume the parsed values.
 
 `src/utils/logger.ts` exports the shared Pino logger. Logs are JSON in every mode;
 the startup record includes the actual listening port. `LOG_LEVEL` controls
-verbosity, and `silent` disables logs.
+verbosity, and `silent` disables logs. Request middleware generates an
+`X-Request-ID` for each request. It logs receipt at `debug`, completion at `info`
+with method, path, HTTP status, and elapsed milliseconds, and interrupted
+connections at `warn`. Error records include the same request ID. Bodies, query
+values, and request headers are not included in these request records.
 
 ## Error responses
 
 API errors use the JSON envelope above. `details` is an empty object unless the
-error supplies additional information, such as validation issues. Successful
-POST and GET responses retain their existing formats.
+error supplies additional information, such as validation issues.
 
-| Code                     | HTTP status | Meaning                            |
-| ------------------------ | ----------- | ---------------------------------- |
-| `VALIDATION_ERROR`       | 400         | Invalid body or query fields       |
-| `INVALID_JSON`           | 400         | Malformed JSON body                |
-| `BAD_REQUEST`            | 400         | Aborted or incomplete request body |
-| `NOT_FOUND`              | 404         | Unknown route                      |
-| `CONFLICT`               | 409         | Conflicting operation              |
-| `PAYLOAD_TOO_LARGE`      | 413         | JSON body exceeds the parser limit |
-| `UNSUPPORTED_MEDIA_TYPE` | 415         | Unsupported body encoding          |
-| `INTERNAL_ERROR`         | 500         | Unexpected application failure     |
+| Code                     | HTTP status | Meaning                             |
+| ------------------------ | ----------- | ----------------------------------- |
+| `VALIDATION_ERROR`       | 400         | Invalid body, query, or path fields |
+| `INVALID_JSON`           | 400         | Malformed JSON body                 |
+| `BAD_REQUEST`            | 400         | Aborted or incomplete request body  |
+| `NOT_FOUND`              | 404         | Unknown route or organisation       |
+| `CONFLICT`               | 409         | Conflicting operation               |
+| `PAYLOAD_TOO_LARGE`      | 413         | JSON body exceeds the parser limit  |
+| `UNSUPPORTED_MEDIA_TYPE` | 415         | Unsupported body encoding           |
+| `RATE_LIMITED`           | 429         | Mutation request budget exceeded    |
+| `INTERNAL_ERROR`         | 500         | Unexpected application failure      |
 
 `src/errors/index.ts` defines `AppError`, `ValidationError`, `NotFoundError`,
 and `ConflictError`. Their messages and details are intended for clients. Shared
 codes, messages, HTTP statuses, and parser error mappings are defined in
-`src/errors/definitions.ts`. The conflict class is available for future routes.
+`src/errors/definitions.ts`. Rename collisions use the conflict class.
 
 The global middleware in `src/middleware/error-handler.ts` runs after the routes
 and the unknown-route fallback. Express 5 forwards rejected async handlers to
@@ -172,8 +215,15 @@ started, the middleware delegates to Express to finish handling the connection.
 
 Helmet applies security headers before JSON parsing and routing, including to
 error responses, and removes `X-Powered-By`. HSTS and automatic HTTPS upgrades are
-disabled for this local HTTP application. Rate limiting remains optional for a
-future change.
+disabled for this local HTTP application. Swagger UI serves assets locally and
+uses the same origin as the API, so no CORS middleware is needed.
+
+POST, PATCH, and DELETE share an in-memory rate limit of 100 requests per IP in a
+60-second window. Reads and documentation remain available. Limited requests
+receive the standard `429 RATE_LIMITED` error, `Retry-After`, and draft 8
+`RateLimit` / `RateLimit-Policy` headers. The budget is local to the process and
+resets on restart; invalid mutation requests also consume it once they reach the
+route limiter.
 
 ## Linting and formatting
 

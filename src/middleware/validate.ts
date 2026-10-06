@@ -4,7 +4,11 @@ import type { z } from "zod";
 import { ValidationError } from "../errors/index.js";
 
 // The locals type carries the parsed schema output, including defaults and transforms.
-export function validate<Output, Source extends "body" | "query", ResponseBody>(
+export function validate<
+  Output,
+  Source extends "body" | "query" | "params",
+  ResponseBody,
+>(
   schema: z.ZodType<Output>,
   source: Source,
 ): RequestHandler<
