@@ -83,15 +83,37 @@ describe("Organisations", () => {
   });
 
   describe("input validation", () => {
-    for (const body of [
-      {},
-      { org_name: "" },
-      { org_name: "   " },
-      { org_name: 42 },
-      { org_name: "InvalidParent", daughters: "InvalidChild" },
+    for (const { body, path } of [
+      { body: {}, path: "body.org_name" },
+      { body: { org_name: "" }, path: "body.org_name" },
+      { body: { org_name: "   " }, path: "body.org_name" },
+      { body: { org_name: 42 }, path: "body.org_name" },
       {
-        org_name: "InvalidParent",
-        daughters: [{ org_name: "ValidChild" }, { org_name: 42 }],
+        body: { org_name: "InvalidParent", daughters: "InvalidChild" },
+        path: "body.daughters",
+      },
+      {
+        body: { org_name: "InvalidParent", daughters: null },
+        path: "body.daughters",
+      },
+      {
+        body: {
+          org_name: "InvalidParent",
+          daughters: [{ org_name: "ValidChild" }, { org_name: 42 }],
+        },
+        path: "body.daughters.1.org_name",
+      },
+      {
+        body: {
+          org_name: "InvalidParent",
+          daughters: [
+            {
+              org_name: "ValidChild",
+              daughters: [{ org_name: "ValidGrandchild" }, { org_name: " " }],
+            },
+          ],
+        },
+        path: "body.daughters.0.daughters.1.org_name",
       },
     ]) {
       it(`rejects invalid body ${JSON.stringify(body)} without writes`, async () => {
@@ -111,12 +133,7 @@ describe("Organisations", () => {
         expect(response.body.error.details.issues)
           .to.be.an("array")
           .with.length.greaterThan(0);
-        expect(response.body.error.details.issues[0].path).to.match(/^body\./);
-        if (Array.isArray(body.daughters)) {
-          expect(response.body.error.details.issues[0].path).to.equal(
-            "body.daughters.1.org_name",
-          );
-        }
+        expect(response.body.error.details.issues[0].path).to.equal(path);
         const after = await Promise.all([
           knex("organisations").select("id"),
           knex("relationships").select("id"),
