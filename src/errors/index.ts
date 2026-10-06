@@ -1,3 +1,6 @@
+import { ERROR_DEFINITIONS } from "./definitions.js";
+import type { ErrorDefinition } from "./definitions.js";
+
 export interface ErrorResponse {
   error: {
     code: string;
@@ -13,37 +16,34 @@ export interface ValidationIssue {
 }
 
 export class AppError extends Error {
+  readonly statusCode: number;
+  readonly code: string;
+
   constructor(
-    message = "Internal server error",
-    readonly statusCode = 500,
-    readonly code = "INTERNAL_ERROR",
+    definition: ErrorDefinition = ERROR_DEFINITIONS.INTERNAL_ERROR,
     readonly details: Record<string, unknown> = {},
   ) {
-    super(message);
+    super(definition.message);
     this.name = new.target.name;
+    this.statusCode = definition.statusCode;
+    this.code = definition.code;
   }
 }
 
 export class ValidationError extends AppError {
   constructor(issues: ValidationIssue[]) {
-    super("Invalid request", 400, "VALIDATION_ERROR", { issues });
+    super(ERROR_DEFINITIONS.VALIDATION_ERROR, { issues });
   }
 }
 
 export class NotFoundError extends AppError {
-  constructor(message = "Route not found") {
-    super(message, 404, "NOT_FOUND");
+  constructor(message: string = ERROR_DEFINITIONS.NOT_FOUND.message) {
+    super({ ...ERROR_DEFINITIONS.NOT_FOUND, message });
   }
 }
 
 export class ConflictError extends AppError {
-  constructor(message = "Request conflicts with the current state") {
-    super(message, 409, "CONFLICT");
-  }
-}
-
-export class UnauthorizedError extends AppError {
-  constructor(message = "Unauthorized") {
-    super(message, 401, "UNAUTHORIZED");
+  constructor(message: string = ERROR_DEFINITIONS.CONFLICT.message) {
+    super({ ...ERROR_DEFINITIONS.CONFLICT, message });
   }
 }

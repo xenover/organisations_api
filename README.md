@@ -146,15 +146,14 @@ POST and GET responses retain their existing formats.
 | `BAD_REQUEST`            | 400         | Aborted or incomplete request body |
 | `NOT_FOUND`              | 404         | Unknown route                      |
 | `CONFLICT`               | 409         | Conflicting operation              |
-| `UNAUTHORIZED`           | 401         | Authorization required             |
 | `PAYLOAD_TOO_LARGE`      | 413         | JSON body exceeds the parser limit |
 | `UNSUPPORTED_MEDIA_TYPE` | 415         | Unsupported body encoding          |
 | `INTERNAL_ERROR`         | 500         | Unexpected application failure     |
 
 `src/errors/index.ts` defines `AppError`, `ValidationError`, `NotFoundError`,
-`ConflictError`, and `UnauthorizedError`. Their messages and details are intended
-for clients. The conflict and authorization classes are available for future
-routes; current endpoints do not require authentication.
+and `ConflictError`. Their messages and details are intended for clients. Shared
+codes, messages, HTTP statuses, and parser error mappings are defined in
+`src/errors/definitions.ts`. The conflict class is available for future routes.
 
 The global middleware in `src/middleware/error-handler.ts` runs after the routes
 and the unknown-route fallback. Express 5 forwards rejected async handlers to

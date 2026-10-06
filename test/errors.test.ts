@@ -7,7 +7,6 @@ import {
   AppError,
   ConflictError,
   NotFoundError,
-  UnauthorizedError,
   ValidationError,
 } from "../src/errors/index.js";
 import { errorHandler } from "../src/middleware/error-handler.js";
@@ -37,16 +36,14 @@ describe("Global error handling", () => {
       details: {},
     },
     {
-      thrown: new UnauthorizedError(),
-      statusCode: 401,
-      code: "UNAUTHORIZED",
-      message: "Unauthorized",
-      details: {},
-    },
-    {
-      thrown: new AppError("Service unavailable", 503, "SERVICE_UNAVAILABLE", {
-        retryAfterSeconds: 10,
-      }),
+      thrown: new AppError(
+        {
+          message: "Service unavailable",
+          statusCode: 503,
+          code: "SERVICE_UNAVAILABLE",
+        },
+        { retryAfterSeconds: 10 },
+      ),
       statusCode: 503,
       code: "SERVICE_UNAVAILABLE",
       message: "Service unavailable",

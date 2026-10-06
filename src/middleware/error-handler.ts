@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from "express";
 import { AppError } from "../errors/index.js";
 import type { ErrorResponse } from "../errors/index.js";
+import { REQUEST_BODY_ERRORS } from "../errors/definitions.js";
 import { logger } from "../utils/logger.js";
 
 function normalizeError(error: unknown): AppError {
@@ -10,30 +11,14 @@ function normalizeError(error: unknown): AppError {
 
   // Express's JSON parser raises HTTP errors before route validation runs.
   // Give clients stable messages rather than parser internals or body excerpts.
-  if (error instanceof Error && "type" in error) {
-    switch (error.type) {
-      case "entity.parse.failed":
-        return new AppError(
-          "Request body must be valid JSON",
-          400,
-          "INVALID_JSON",
-        );
-      case "entity.too.large":
-        return new AppError(
-          "Request body is too large",
-          413,
-          "PAYLOAD_TOO_LARGE",
-        );
-      case "encoding.unsupported":
-      case "charset.unsupported":
-        return new AppError(
-          "Unsupported request body encoding",
-          415,
-          "UNSUPPORTED_MEDIA_TYPE",
-        );
-      case "request.aborted":
-      case "request.size.invalid":
-        return new AppError("Invalid request body", 400, "BAD_REQUEST");
+  if (
+    error instanceof Error &&
+    "type" in error &&
+    typeof error.type === "string"
+  ) {
+    const definition = REQUEST_BODY_ERRORS.get(error.type);
+    if (definition) {
+      return new AppError(definition);
     }
   }
 
