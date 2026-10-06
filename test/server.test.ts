@@ -101,12 +101,14 @@ describe("Server startup", () => {
             const address = server.address();
             assert.ok(address && typeof address !== 'string');
             const base = 'http://127.0.0.1:' + address.port;
-            const root = await fetch(base + '/');
+            const root = await fetch(base + '/?private=query-log-secret', { headers: { Authorization: 'Bearer header-log-secret' } });
             assert.equal(root.status, 200);
             assert.equal(await root.text(), 'Nothing here');
             const docs = await fetch(base + '/swagger.json');
             assert.equal(docs.status, 200);
             assert.equal((await docs.json()).openapi, '3.0.3');
+            const invalid = await fetch(base + '/organisations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"private":"serialized-parser-secret",' });
+            assert.equal(invalid.status, 400);
           } finally {
             server.closeAllConnections();
             await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
@@ -115,7 +117,13 @@ describe("Server startup", () => {
         `,
       ],
       {
-        env: { ...process.env, NODE_ENV: "test", PORT: "0", LOG_LEVEL: "info" },
+        env: {
+          ...process.env,
+          NODE_ENV: "test",
+          PORT: "0",
+          LOG_LEVEL: "info",
+          DEMO_SECRET: "runtime-env-log-secret",
+        },
         timeout: 8000,
       },
     );
@@ -127,7 +135,17 @@ describe("Server startup", () => {
     expect(startup.port).to.be.a("number").and.greaterThan(0);
     expect(
       logs.filter(({ msg }) => msg === "Request completed"),
-    ).to.have.length(2);
+    ).to.have.length(3);
+    for (const secret of [
+      "serialized-parser-secret",
+      "runtime-env-log-secret",
+      "header-log-secret",
+      "query-log-secret",
+    ])
+      expect(stdout).not.to.include(secret);
+    const failed = logs.find(({ msg }) => msg === "Request failed");
+    expect(failed.err.message).to.equal("Request body must be valid JSON");
+    expect(failed.err).not.to.have.property("body");
   });
 
   for (const signal of ["SIGTERM", "SIGINT"] as const) {

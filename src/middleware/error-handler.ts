@@ -32,8 +32,14 @@ export const errorHandler: ErrorRequestHandler = (
   next,
 ) => {
   const normalized = normalizeError(error);
+  const bodyParserFailure =
+    error instanceof Error &&
+    "type" in error &&
+    typeof error.type === "string" &&
+    REQUEST_BODY_ERRORS.has(error.type);
   const log = {
-    err: error,
+    // Parser errors can carry raw bodies and include body excerpts in their stacks.
+    err: bodyParserFailure ? normalized : error,
     method: req.method,
     path: req.path,
     statusCode: normalized.statusCode,

@@ -176,7 +176,9 @@ verbosity, and `silent` disables logs. Request middleware generates an
 `X-Request-ID` for each request. It logs receipt at `debug`, completion at `info`
 with method, path, HTTP status, and elapsed milliseconds, and interrupted
 connections at `warn`. Error records include the same request ID. Bodies, query
-values, and request headers are excluded from these request records.
+values, and request headers are excluded from these request records. See
+[local logging and troubleshooting](docs/logging.md) for the event fields, levels,
+request correlation, shutdown events, and log inspection commands.
 
 ## Error responses
 
@@ -205,7 +207,9 @@ The global middleware in `src/middleware/error-handler.ts` runs after the routes
 and the unknown-route fallback. Express 5 forwards rejected async handlers to
 it. Unexpected failures return `Internal server error`, and parser failures use
 stable messages without body excerpts. Responses omit stack traces; Pino records
-the original error and stack with the method, path, status, and code. Client
+the original unexpected error and stack with the method, path, status, and code.
+Recognized body-parser errors use the normalized safe error in logs as well,
+because their original errors can contain request bodies and JSON excerpts. Client
 errors log at `warn`, and server errors log at `error`. If a response has already
 started, the middleware delegates to Express to finish handling the connection.
 
@@ -262,6 +266,7 @@ docker run --name organisations_api -p 127.0.0.1:3000:3000 \
 
 Alternatively, mount an environment file read-only at `/usr/src/app/.env` using
 `--mount type=bind,source=/absolute/private/organisations.env,target=/usr/src/app/.env,readonly`.
+Mounted files must be readable by the container user (UID 1000).
 The normal file-loading rules apply; variables already set in the process/image
 have priority over mounted files. `.env.container` is the optional Compose runtime
 file and is excluded from Git and builds. Compose's explicit mode, port, and

@@ -94,6 +94,26 @@ describe("Request logging", () => {
     ).to.have.length(0);
   });
 
+  it("sanitizes parser error bodies, messages, and stacks in correlated logs", async () => {
+    const app = express();
+    app.use(requestLogger, express.json());
+    app.post("/parse", (_req, res) => res.sendStatus(204));
+    app.use(errorHandler);
+    const response = await request(app)
+      .post("/parse")
+      .set("Content-Type", "application/json")
+      .send('{"private":"parser-body-secret",')
+      .expect(400);
+    expect(response.body.error.code).to.equal("INVALID_JSON");
+    const failed = entries.find(({ message }) => message === "Request failed")!;
+    expect(failed.context.requestId).to.equal(response.headers["x-request-id"]);
+    const error = failed.context.err as Error;
+    expect(error.message).to.equal(response.body.error.message);
+    expect(error).not.to.have.property("body");
+    expect(error.stack).not.to.include("parser-body-secret");
+    expect(JSON.stringify(entries)).not.to.include("parser-body-secret");
+  });
+
   it("logs a client-disconnected stream as aborted without reporting completion", async () => {
     const app = express();
     app.use(requestLogger);
