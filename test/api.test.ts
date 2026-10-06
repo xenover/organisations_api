@@ -103,13 +103,17 @@ describe("Organisations", () => {
           .post("/organisations")
           .send(body)
           .expect(400);
-        expect(response.body).to.have.property("error", "Invalid request");
-        expect(response.body.issues)
+        expect(response.body.error).to.include({
+          code: "VALIDATION_ERROR",
+          message: "Invalid request",
+          statusCode: 400,
+        });
+        expect(response.body.error.details.issues)
           .to.be.an("array")
           .with.length.greaterThan(0);
-        expect(response.body.issues[0].path).to.match(/^body\./);
+        expect(response.body.error.details.issues[0].path).to.match(/^body\./);
         if (Array.isArray(body.daughters)) {
-          expect(response.body.issues[0].path).to.equal(
+          expect(response.body.error.details.issues[0].path).to.equal(
             "body.daughters.1.org_name",
           );
         }
@@ -136,11 +140,15 @@ describe("Organisations", () => {
           .get("/organisations")
           .query(query)
           .expect(400);
-        expect(response.body).to.have.property("error", "Invalid request");
-        expect(response.body.issues)
+        expect(response.body.error).to.include({
+          code: "VALIDATION_ERROR",
+          message: "Invalid request",
+          statusCode: 400,
+        });
+        expect(response.body.error.details.issues)
           .to.be.an("array")
           .with.length.greaterThan(0);
-        expect(response.body.issues[0].path).to.match(/^query\./);
+        expect(response.body.error.details.issues[0].path).to.match(/^query\./);
       });
     }
 
@@ -168,5 +176,64 @@ describe("Organisations", () => {
         "upgrade-insecure-requests",
       );
     }
+  });
+
+  it("returns a structured 404 for missing routes", async () => {
+    const response = await request(server).get("/missing").expect(404);
+    expect(response.body).to.deep.equal({
+      error: {
+        code: "NOT_FOUND",
+        message: "Route not found",
+        statusCode: 404,
+        details: {},
+      },
+    });
+  });
+
+  it("returns a safe JSON error for malformed request bodies", async () => {
+    const response = await request(server)
+      .post("/organisations")
+      .set("Content-Type", "application/json")
+      .send('{"org_name": "Private input",')
+      .expect(400);
+    expect(response.body).to.deep.equal({
+      error: {
+        code: "INVALID_JSON",
+        message: "Request body must be valid JSON",
+        statusCode: 400,
+        details: {},
+      },
+    });
+    expect(response.text).not.to.include("Private input");
+    expect(response.headers["x-content-type-options"]).to.equal("nosniff");
+  });
+
+  it("returns a structured 413 when the request body exceeds the limit", async () => {
+    const response = await request(server)
+      .post("/organisations")
+      .send({ org_name: "x".repeat(110 * 1024) })
+      .expect(413);
+    expect(response.body).to.deep.equal({
+      error: {
+        code: "PAYLOAD_TOO_LARGE",
+        message: "Request body is too large",
+        statusCode: 413,
+        details: {},
+      },
+    });
+  });
+
+  it("returns a structured 415 for an unsupported JSON charset", async () => {
+    const response = await request(server)
+      .post("/organisations")
+      .set("Content-Type", "application/json; charset=unsupported")
+      .send('{"org_name":"Parent"}')
+      .expect(415);
+    expect(response.body.error).to.deep.equal({
+      code: "UNSUPPORTED_MEDIA_TYPE",
+      message: "Unsupported request body encoding",
+      statusCode: 415,
+      details: {},
+    });
   });
 });

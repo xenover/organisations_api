@@ -110,13 +110,19 @@ decimal notation. Invalid requests return `400` with field-level details:
 
 ```json
 {
-  "error": "Invalid request",
-  "issues": [
-    {
-      "path": "body.daughters.0.org_name",
-      "message": "Organisation name must not be blank"
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request",
+    "statusCode": 400,
+    "details": {
+      "issues": [
+        {
+          "path": "body.daughters.0.org_name",
+          "message": "Organisation name must not be blank"
+        }
+      ]
     }
-  ]
+  }
 }
 ```
 
@@ -126,6 +132,39 @@ intact. Request types are inferred from the schemas.
 `src/utils/logger.ts` exports the shared Pino logger. Logs are JSON in every mode;
 the startup record includes the actual listening port. `LOG_LEVEL` controls
 verbosity, and `silent` disables logs.
+
+## Error responses
+
+API errors use the JSON envelope above. `details` is an empty object unless the
+error supplies additional information, such as validation issues. Successful
+POST and GET responses retain their existing formats.
+
+| Code                     | HTTP status | Meaning                            |
+| ------------------------ | ----------- | ---------------------------------- |
+| `VALIDATION_ERROR`       | 400         | Invalid body or query fields       |
+| `INVALID_JSON`           | 400         | Malformed JSON body                |
+| `BAD_REQUEST`            | 400         | Aborted or incomplete request body |
+| `NOT_FOUND`              | 404         | Unknown route                      |
+| `CONFLICT`               | 409         | Conflicting operation              |
+| `UNAUTHORIZED`           | 401         | Authorization required             |
+| `PAYLOAD_TOO_LARGE`      | 413         | JSON body exceeds the parser limit |
+| `UNSUPPORTED_MEDIA_TYPE` | 415         | Unsupported body encoding          |
+| `INTERNAL_ERROR`         | 500         | Unexpected application failure     |
+
+`src/errors/index.ts` defines `AppError`, `ValidationError`, `NotFoundError`,
+`ConflictError`, and `UnauthorizedError`. Their messages and details are intended
+for clients. The conflict and authorization classes are available for future
+routes; current endpoints do not require authentication.
+
+The global middleware in `src/middleware/error-handler.ts` runs after the routes
+and the unknown-route fallback. Express 5 forwards rejected async handlers to
+it. Unexpected failures return `Internal server error`, and parser failures use
+stable messages without body excerpts. Responses omit stack traces; Pino records
+the original error and stack with the method, path, status, and code. Client
+errors log at `warn`, and server errors log at `error`. If a response has already
+started, the middleware delegates to Express to finish handling the connection.
+
+## Security headers
 
 Helmet applies security headers before JSON parsing and routing, including to
 error responses, and removes `X-Powered-By`. HSTS and automatic HTTPS upgrades are
