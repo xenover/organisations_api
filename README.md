@@ -1,5 +1,7 @@
 # Organisations API
 
+[![CI](https://github.com/xenover/organisations_api/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/xenover/organisations_api/actions/workflows/ci.yml)
+
 Simple JSON API to manage organisations and their relationships
 
 ## Technologies used
@@ -228,7 +230,51 @@ block the commit. Only staged files are processed, preserving unstaged edits.
 
 ## Testing
 
-- npm test (runs TypeScript tests through tsx)
+- `npm test` - run Mocha/Chai/Supertest tests through tsx; exits naturally.
+- `npm run test:watch` - rerun in a fresh process on source, test, or migration edits.
+- `npm run test:debug` - pause at startup with Node's inspector on port 9229.
+  Attach a Node debugger (for example VS Code's attach configuration or Chrome's
+  `chrome://inspect`), set a breakpoint in a `.test.ts` file, and resume. Test
+  timeouts are disabled while debugging; tsx provides TypeScript source maps.
+
+Each test process uses a temporary SQLite file and removes it on exit. It does
+not read or modify `dev.sqlite3` or the repository's `test.sqlite3`. The HTTP
+suite constructs the Express app without starting the production listener;
+Supertest owns each request's temporary server. Teardown closes both Knex clients
+on successful and failed tests. Watch mode restarts the process so native ESM
+modules and test data cannot carry over between runs.
+
+`npm run test:coverage` runs the same suite with c8/V8 coverage. It writes the HTML
+report to `coverage/index.html`, LCOV to `coverage/lcov.info`, and a JSON summary
+to `coverage/coverage-summary.json`. Reports include application TypeScript,
+server startup, Knex configuration, and migrations, including unloaded files.
+Type-only interfaces, test support, dependencies, and generated output are excluded.
+Coverage is remapped to original source files before exclusions are applied.
+
+The existing 59-test suite measured 97.85% lines/statements, 97.67% functions,
+and 93.13% branches before the additional behavior tests. The enforced global
+minimums are 95% lines/statements/functions and 90% branches, allowing modest
+headroom while detecting regressions. Critical behavior is tested explicitly:
+pagination, repeated/concurrent insertion, rollback, errors, logging, and limits.
+
+Test commands disable Node's experimental `require(esm)` path so Mocha imports
+ESM tests consistently. Otherwise Mocha's require-first fallback and tsx can
+load the same module twice with conflicting CommonJS/ESM source maps, producing
+misleading coverage. This setting applies to normal, watch, and debug runs.
+
+## Continuous integration
+
+GitHub Actions runs `.github/workflows/ci.yml` for every pull request (including
+PRs targeting another branch in a stack), pushes to `master`, and manual runs.
+It installs locked dependencies with `npm ci` using the Node 24 version in
+`.nvmrc`, then checks formatting, lint, types, build, tests/coverage, and
+high/critical dependency advisories. Each failed check fails the job.
+
+The workflow uploads the HTML, LCOV, and JSON coverage reports as a `coverage`
+artifact for 14 days, including after failed tests when reports were generated.
+Raw V8 temporary data is excluded. Actions use pinned commit SHAs and read-only
+repository permissions. Superseded runs for the same PR or branch are canceled.
+There is no release publishing or deployment workflow.
 
 ## Docker setup
 

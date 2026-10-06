@@ -2,29 +2,40 @@ import request from "supertest";
 import { expect } from "chai";
 import knexModule from "knex";
 import configurations from "../knexfile.js";
-import { after, before, describe, it } from "mocha";
+import { after, before, beforeEach, describe, it } from "mocha";
 import type {
   OrganisationInput,
   OrganisationRecord,
   OrganisationRelationship,
   RelationshipRecord,
 } from "../src/types/organisations.js";
+import { paginatedHierarchy } from "./fixtures/organisations.js";
 
 const config = configurations.test;
 const knex = knexModule.knex(config);
 
 // The test preload sets NODE_ENV before application configuration is imported.
-const { default: server } = await import("../server.js");
+const { default: createApp } = await import("../src/app.js");
+const { default: applicationDatabase } = await import("../src/database/db.js");
+let app: ReturnType<typeof createApp>;
 
 describe("Organisations", () => {
   before(async function () {
-    await knex.migrate.up();
+    await knex.migrate.latest();
+  });
+
+  beforeEach(async () => {
+    await knex("relationships").del();
+    await knex("organisations").del();
+    app = createApp();
   });
 
   after(async function () {
-    await knex("relationships").del().then();
-    await knex("organisations").del().then();
-    await knex.migrate.down();
+    try {
+      await knex.migrate.rollback();
+    } finally {
+      await Promise.all([knex.destroy(), applicationDatabase.destroy()]);
+    }
   });
 
   describe("relationships handling", () => {
@@ -74,9 +85,9 @@ describe("Organisations", () => {
       ];
 
       // POST organisations
-      await request(server).post("/organisations").send(inputJson).expect(201);
+      await request(app).post("/organisations").send(inputJson).expect(201);
       // GET organisations
-      await request(server)
+      await request(app)
         .get("/organisations")
         .query({ name: "GrandChild4" })
         .expect(200)
@@ -106,7 +117,7 @@ describe("Organisations", () => {
         ],
       };
       for (let attempt = 0; attempt < 2; attempt++) {
-        const response = await request(server)
+        const response = await request(app)
           .post("/organisations")
           .send(input)
           .expect(201);
@@ -125,7 +136,7 @@ describe("Organisations", () => {
         rows.map(({ id }) => id),
       );
       expect(links).to.have.length(2);
-      const response = await request(server)
+      const response = await request(app)
         .get("/organisations?name=TransactionalChild")
         .expect(200);
       expect(response.body).to.deep.equal([
@@ -134,15 +145,21 @@ describe("Organisations", () => {
       ]);
     });
 
-    for (const table of ["organisations", "relationships"] as const) {
-      it(`rolls back the entire tree when a nested ${table} write fails`, async () => {
-        const prefix = `Rollback-${table}`;
+    for (const { table, reuseParent } of [
+      { table: "organisations", reuseParent: true },
+      { table: "relationships", reuseParent: true },
+      { table: "organisations", reuseParent: false },
+      { table: "relationships", reuseParent: false },
+    ] as const) {
+      it(`rolls back a ${reuseParent ? "reused" : "new"} root when a nested ${table} write fails`, async () => {
+        const prefix = `Rollback-${table}-${reuseParent ? "reused" : "new"}`;
         const existing = {
           org_name: `${prefix}-Parent`,
           daughters: [{ org_name: `${prefix}-Existing` }],
         };
-        await request(server).post("/organisations").send(existing).expect(201);
+        await request(app).post("/organisations").send(existing).expect(201);
         const before = await snapshot();
+        const rootName = reuseParent ? existing.org_name : `${prefix}-NewRoot`;
         const rejectedName = `${prefix}-Rejected`;
         const condition =
           table === "organisations"
@@ -160,7 +177,7 @@ describe("Organisations", () => {
         );
         try {
           const input = {
-            org_name: existing.org_name,
+            org_name: rootName,
             daughters: [
               ...existing.daughters,
               { org_name: `${prefix}-Earlier` },
@@ -170,7 +187,7 @@ describe("Organisations", () => {
               },
             ],
           };
-          const response = await request(server)
+          const response = await request(app)
             .post("/organisations")
             .send(input)
             .expect(500);
@@ -187,23 +204,123 @@ describe("Organisations", () => {
           await knex.raw("DROP TRIGGER reject_tree_write");
         }
         // The connection remains usable after rollback, and retrying can commit.
-        await request(server)
+        await request(app)
           .post("/organisations")
           .send({
-            org_name: existing.org_name,
+            org_name: rootName,
             daughters: [{ org_name: rejectedName }],
           })
           .expect(201);
-        const response = await request(server)
+        const response = await request(app)
           .get("/organisations")
           .query({ name: rejectedName })
           .expect(200);
         expect(response.body).to.deep.equal([
-          { org_name: `${prefix}-Existing`, relationship_type: "sister" },
-          { org_name: existing.org_name, relationship_type: "parent" },
+          ...(reuseParent
+            ? [{ org_name: `${prefix}-Existing`, relationship_type: "sister" }]
+            : []),
+          { org_name: rootName, relationship_type: "parent" },
         ]);
       });
     }
+  });
+
+  describe("existing API edge cases", () => {
+    it("returns an empty array for an unknown organisation", async () => {
+      const response = await request(app)
+        .get("/organisations?name=Unknown")
+        .expect(200);
+      expect(response.body).to.deep.equal([]);
+    });
+
+    it("preserves names and ignores unknown fields throughout an inserted tree", async () => {
+      await request(app)
+        .post("/organisations")
+        .send({
+          org_name: " Parent's name ",
+          id: 100,
+          daughters: [{ org_name: " Child ", parent_id: 123 }],
+        })
+        .expect(201);
+      const response = await request(app)
+        .get("/organisations")
+        .query({ name: " Child " })
+        .expect(200);
+      expect(response.body).to.deep.equal([
+        { org_name: " Parent's name ", relationship_type: "parent" },
+      ]);
+      const rows =
+        await knex<OrganisationRecord>("organisations").orderBy("id");
+      expect(rows.map(({ name }) => name)).to.deep.equal([
+        " Parent's name ",
+        " Child ",
+      ]);
+      expect(rows[0]?.id).not.to.equal(100);
+    });
+
+    it("returns bare arrays across full, partial, and empty 100-result pages", async () => {
+      const hierarchy = paginatedHierarchy();
+      await request(app).post("/organisations").send(hierarchy).expect(201);
+      const expected = hierarchy.daughters.map(({ org_name }) => ({
+        org_name,
+        relationship_type: "daughter",
+      }));
+      for (const page of [1, 2, 3, 4]) {
+        const response = await request(app)
+          .get("/organisations")
+          .query({ name: hierarchy.org_name, page })
+          .expect(200);
+        expect(response.body).to.deep.equal(
+          expected.slice((page - 1) * 100, page * 100),
+        );
+      }
+    });
+
+    it("reuses names and links across concurrent submissions", async () => {
+      const tree = {
+        org_name: "ConcurrentParent",
+        daughters: [{ org_name: "ConcurrentChild" }],
+      };
+      const responses = await Promise.all(
+        Array.from({ length: 3 }, () =>
+          request(app).post("/organisations").send(tree).expect(201),
+        ),
+      );
+      expect(responses.map(({ text }) => text)).to.deep.equal([
+        "OK",
+        "OK",
+        "OK",
+      ]);
+      expect(await knex("organisations").select("id")).to.have.length(2);
+      expect(await knex("relationships").select("id")).to.have.length(1);
+    });
+
+    it("returns a safe 500 when relationship lookup cannot access its table", async () => {
+      await knex.schema.renameTable(
+        "relationships",
+        "unavailable_relationships",
+      );
+      try {
+        const response = await request(app)
+          .get("/organisations?name=PrivateName")
+          .expect(500);
+        expect(response.body).to.deep.equal({
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Internal server error",
+            statusCode: 500,
+            details: {},
+          },
+        });
+        expect(response.text).not.to.include("PrivateName");
+        expect(response.text).not.to.include("SQLITE");
+      } finally {
+        await knex.schema.renameTable(
+          "unavailable_relationships",
+          "relationships",
+        );
+      }
+    });
   });
 
   describe("input validation", () => {
@@ -245,7 +362,7 @@ describe("Organisations", () => {
           knex("organisations").select("id"),
           knex("relationships").select("id"),
         ]);
-        const response = await request(server)
+        const response = await request(app)
           .post("/organisations")
           .send(body)
           .expect(400);
@@ -277,7 +394,7 @@ describe("Organisations", () => {
       { name: "GrandChild4", page: ["1", "2"] },
     ]) {
       it(`rejects invalid query ${JSON.stringify(query)}`, async () => {
-        const response = await request(server)
+        const response = await request(app)
           .get("/organisations")
           .query(query)
           .expect(400);
@@ -294,7 +411,7 @@ describe("Organisations", () => {
     }
 
     it("accepts an explicit valid page and preserves pagination", async () => {
-      const response = await request(server)
+      const response = await request(app)
         .get("/organisations")
         .query({ name: "GrandChild4", page: "2" })
         .expect(200);
@@ -303,13 +420,27 @@ describe("Organisations", () => {
   });
 
   describe("Documentation and existing endpoint enhancements", () => {
+    it("applies the actual POST budget to invalid requests while keeping reads and docs available", async () => {
+      for (let index = 0; index < 100; index++) {
+        await request(app).post("/organisations").send({}).expect(400);
+      }
+      const limited = await request(app)
+        .post("/organisations")
+        .send({ org_name: "Blocked" })
+        .expect(429);
+      expect(limited.body.error.code).to.equal("RATE_LIMITED");
+      await request(app).get("/organisations?name=Blocked").expect(200, []);
+      await request(app).get("/swagger.json").expect(200);
+      expect(await knex("organisations").select("id")).to.have.length(0);
+    });
+
     it("preserves POST's 201 OK response when creating and reusing a tree", async () => {
       const body = {
         org_name: "DocumentedParent",
         daughters: [{ org_name: "DocumentedChild" }],
       };
       for (let attempt = 0; attempt < 2; attempt++) {
-        const response = await request(server)
+        const response = await request(app)
           .post("/organisations")
           .send(body)
           .expect(201);
@@ -318,7 +449,7 @@ describe("Organisations", () => {
         expect(response.headers.location).to.equal(undefined);
         expect(response.headers.ratelimit).to.be.a("string");
       }
-      const response = await request(server)
+      const response = await request(app)
         .get("/organisations?name=DocumentedChild")
         .expect(200);
       expect(response.body).to.deep.equal([
@@ -327,9 +458,9 @@ describe("Organisations", () => {
     });
 
     it("serves Swagger UI and local assets under Helmet's headers", async () => {
-      const redirect = await request(server).get("/swagger").expect(301);
+      const redirect = await request(app).get("/swagger").expect(301);
       expect(redirect.headers.location).to.equal("/swagger/");
-      const html = await request(server).get("/swagger/").expect(200);
+      const html = await request(app).get("/swagger/").expect(200);
       expect(html.headers["content-type"]).to.match(/text\/html/);
       expect(html.text).to.include("swagger-ui-bundle.js");
       expect(html.headers["x-content-type-options"]).to.equal("nosniff");
@@ -338,17 +469,17 @@ describe("Organisations", () => {
         "swagger-ui-bundle.js",
         "swagger-ui-init.js",
       ]) {
-        await request(server).get(`/swagger/${asset}`).expect(200);
+        await request(app).get(`/swagger/${asset}`).expect(200);
       }
-      const init = await request(server)
+      const init = await request(app)
         .get("/swagger/swagger-ui-init.js")
         .expect(200);
       expect(init.text).to.include("/swagger.json");
     });
 
     it("returns unique request IDs on successes and errors while preserving the root response", async () => {
-      const success = await request(server).get("/").expect(200);
-      const failure = await request(server).get("/missing").expect(404);
+      const success = await request(app).get("/").expect(200);
+      const failure = await request(app).get("/missing").expect(404);
       const uuid =
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
       expect(success.headers["x-request-id"]).to.match(uuid);
@@ -361,13 +492,13 @@ describe("Organisations", () => {
     });
 
     it("keeps ID-based and mutation endpoints outside the original API", async () => {
-      await request(server).get("/organisations/1").expect(404);
-      await request(server).get("/organisations/1/relationships").expect(404);
-      await request(server)
+      await request(app).get("/organisations/1").expect(404);
+      await request(app).get("/organisations/1/relationships").expect(404);
+      await request(app)
         .patch("/organisations/1")
         .send({ org_name: "Ignored" })
         .expect(404);
-      await request(server).delete("/organisations/1").expect(404);
+      await request(app).delete("/organisations/1").expect(404);
     });
   });
 
@@ -377,7 +508,7 @@ describe("Organisations", () => {
       ["/organisations", 400],
       ["/missing", 404],
     ] as const) {
-      const response = await request(server).get(path).expect(status);
+      const response = await request(app).get(path).expect(status);
       expect(response.headers["x-content-type-options"]).to.equal("nosniff");
       expect(response.headers["x-frame-options"]).to.equal("SAMEORIGIN");
       expect(response.headers["x-powered-by"]).to.equal(undefined);
@@ -389,7 +520,7 @@ describe("Organisations", () => {
   });
 
   it("returns a structured 404 for missing routes", async () => {
-    const response = await request(server).get("/missing").expect(404);
+    const response = await request(app).get("/missing").expect(404);
     expect(response.body).to.deep.equal({
       error: {
         code: "NOT_FOUND",
@@ -401,7 +532,7 @@ describe("Organisations", () => {
   });
 
   it("returns a safe JSON error for malformed request bodies", async () => {
-    const response = await request(server)
+    const response = await request(app)
       .post("/organisations")
       .set("Content-Type", "application/json")
       .send('{"org_name": "Private input",')
@@ -419,7 +550,7 @@ describe("Organisations", () => {
   });
 
   it("returns a structured 413 when the request body exceeds the limit", async () => {
-    const response = await request(server)
+    const response = await request(app)
       .post("/organisations")
       .send({ org_name: "x".repeat(110 * 1024) })
       .expect(413);
@@ -434,7 +565,7 @@ describe("Organisations", () => {
   });
 
   it("returns a structured 415 for an unsupported JSON charset", async () => {
-    const response = await request(server)
+    const response = await request(app)
       .post("/organisations")
       .set("Content-Type", "application/json; charset=unsupported")
       .send('{"org_name":"Parent"}')

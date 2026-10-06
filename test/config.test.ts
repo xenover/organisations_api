@@ -33,6 +33,11 @@ describe("Environment configuration", () => {
     expect(() => loadEnvironment(root, {})).to.throw();
   });
 
+  it("fails on an unreadable environment-specific file", () => {
+    mkdirSync(join(directory, ".env.test"));
+    expect(() => loadEnvironment(root, { NODE_ENV: "test" })).to.throw();
+  });
+
   it("loads the selected environment file over base values and preserves external overrides", () => {
     writeFileSync(
       join(directory, ".env"),

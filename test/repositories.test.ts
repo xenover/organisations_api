@@ -10,6 +10,8 @@ import type {
   RelationshipRecord,
 } from "../src/types/organisations.js";
 
+import { paginatedHierarchy } from "./fixtures/organisations.js";
+
 describe("Database repositories", () => {
   const database = knexModule.knex({
     client: "sqlite3",
@@ -90,12 +92,13 @@ describe("Database repositories", () => {
   });
 
   it("preserves 100-result pages, including the last and empty pages", async () => {
-    const children = Array.from({ length: 205 }, (_, index) => ({
+    const hierarchy = paginatedHierarchy();
+    const children = hierarchy.daughters.map(({ org_name }, index) => ({
       id: index + 2,
-      name: `Child ${String(index).padStart(3, "0")}`,
+      name: org_name,
     }));
     await database<OrganisationRecord>("organisations").insert([
-      { id: 1, name: "Parent" },
+      { id: 1, name: hierarchy.org_name },
       ...children,
     ]);
     await database<RelationshipRecord>("relationships").insert(
@@ -105,12 +108,12 @@ describe("Database repositories", () => {
       org_name: name,
       relationship_type: "daughter",
     }));
-    expect(await relationships.findByOrganisationName("Parent")).to.deep.equal(
-      expected.slice(0, 100),
-    );
+    expect(
+      await relationships.findByOrganisationName(hierarchy.org_name),
+    ).to.deep.equal(expected.slice(0, 100));
     for (const page of [1, 2, 3, 4]) {
       expect(
-        await relationships.findByOrganisationName("Parent", page),
+        await relationships.findByOrganisationName(hierarchy.org_name, page),
       ).to.deep.equal(expected.slice((page - 1) * 100, page * 100));
     }
   });

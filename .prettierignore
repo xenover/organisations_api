@@ -4,3 +4,4 @@ dist/
 package-lock.json
 *.sqlite3*
 .dccache
+coverage/

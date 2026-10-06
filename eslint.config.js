@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   // Generated files and installed dependencies are outside the linting scope.
-  { ignores: ["dist/**", "node_modules/**", ".husky/_/**"] },
+  { ignores: ["dist/**", "coverage/**", "node_modules/**", ".husky/_/**"] },
   {
     files: ["**/*.{js,ts}"],
     extends: [js.configs.recommended],
