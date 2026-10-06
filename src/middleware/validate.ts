@@ -1,10 +1,6 @@
 import type { RequestHandler } from "express";
 import type { z } from "zod";
-
-export interface ValidationErrorResponse {
-  error: string;
-  issues: { path: string; message: string }[];
-}
+import { ValidationError } from "../errors/index.js";
 
 export function validate(
   schema: z.ZodType,
@@ -13,14 +9,14 @@ export function validate(
   return (req, res, next) => {
     const result = schema.safeParse(req[source]);
     if (!result.success) {
-      const response: ValidationErrorResponse = {
-        error: "Invalid request",
-        issues: result.error.issues.map((issue) => ({
-          path: [source, ...issue.path].map(String).join("."),
-          message: issue.message,
-        })),
-      };
-      res.status(400).json(response);
+      next(
+        new ValidationError(
+          result.error.issues.map((issue) => ({
+            path: [source, ...issue.path].map(String).join("."),
+            message: issue.message,
+          })),
+        ),
+      );
       return;
     }
 

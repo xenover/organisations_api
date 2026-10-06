@@ -2,7 +2,7 @@ import * as service from "../services/organisations.js";
 import type { Express } from "express";
 import type { Query } from "express-serve-static-core";
 import { validate } from "../middleware/validate.js";
-import type { ValidationErrorResponse } from "../middleware/validate.js";
+import type { ErrorResponse } from "../errors/index.js";
 import {
   organisationInputSchema,
   organisationQuerySchema,
@@ -16,7 +16,7 @@ import type {
 const organisationRoutes = (app: Express): void => {
   app.get<
     Record<string, never>,
-    OrganisationRelationship[] | ValidationErrorResponse,
+    OrganisationRelationship[] | ErrorResponse,
     never,
     Query,
     { query: OrganisationQuery }
@@ -33,7 +33,7 @@ const organisationRoutes = (app: Express): void => {
 
   app.post<
     Record<string, never>,
-    string | ValidationErrorResponse,
+    string | ErrorResponse,
     unknown,
     Query,
     { body: OrganisationInput }
