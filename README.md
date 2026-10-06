@@ -44,6 +44,12 @@ Route JSDoc comments and `src/docs/openapi.ts` generate the documentation for bo
 source and compiled runs. The documented API retains POST's `201` with `OK`,
 GET's JSON array, and pagination via `page` with 100 results per page.
 
+Database access lives in `src/repositories/`; the organisation service coordinates
+recursive insertion using one transaction for the whole POST. Existing names and
+relationship links are reused. If any organisation or relationship write fails,
+all writes from that request roll back, preserving previously stored data. The
+relationship lookup retains its parameterized UNION query and name ordering.
+
 # Setup
 
 ## Prerequisits
