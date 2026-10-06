@@ -16,6 +16,8 @@ Simple JSON API to manage organisations and their relationships
 - Zod (configuration and request validation)
 - Pino (JSON logging)
 - Helmet (HTTP security headers)
+- Swagger UI and swagger-jsdoc (OpenAPI documentation)
+- express-rate-limit (local POST request budgets)
 
 The project uses native ES modules (`import`/`export`). Local imports include
 the `.js` file extension so emitted JavaScript runs directly in Node.js. Source
@@ -34,6 +36,13 @@ compatibility with existing migration records and is checked by TypeScript.
     - name - required nonblank string, name of the organisation
     - page - positive integer, defaults to 1
   - Returns JSON array of all the organisations and how they relate to the one in question
+
+Interactive Swagger documentation and examples are available at
+[http://localhost:3000/swagger](http://localhost:3000/swagger); the OpenAPI document
+is at [http://localhost:3000/swagger.json](http://localhost:3000/swagger.json).
+Route JSDoc comments and `src/docs/openapi.ts` generate the documentation for both
+source and compiled runs. The documented API retains POST's `201` with `OK`,
+GET's JSON array, and pagination via `page` with 100 results per page.
 
 # Setup
 
@@ -136,7 +145,11 @@ are left intact; handlers consume the parsed values.
 
 `src/utils/logger.ts` exports the shared Pino logger. Logs are JSON in every mode;
 the startup record includes the actual listening port. `LOG_LEVEL` controls
-verbosity, and `silent` disables logs.
+verbosity, and `silent` disables logs. Request middleware generates an
+`X-Request-ID` for each request. It logs receipt at `debug`, completion at `info`
+with method, path, HTTP status, and elapsed milliseconds, and interrupted
+connections at `warn`. Error records include the same request ID. Bodies, query
+values, and request headers are excluded from these request records.
 
 ## Error responses
 
@@ -153,6 +166,7 @@ POST and GET responses retain their existing formats.
 | `CONFLICT`               | 409         | Conflicting operation              |
 | `PAYLOAD_TOO_LARGE`      | 413         | JSON body exceeds the parser limit |
 | `UNSUPPORTED_MEDIA_TYPE` | 415         | Unsupported body encoding          |
+| `RATE_LIMITED`           | 429         | POST request budget exceeded       |
 | `INTERNAL_ERROR`         | 500         | Unexpected application failure     |
 
 `src/errors/index.ts` defines `AppError`, `ValidationError`, `NotFoundError`,
@@ -172,8 +186,16 @@ started, the middleware delegates to Express to finish handling the connection.
 
 Helmet applies security headers before JSON parsing and routing, including to
 error responses, and removes `X-Powered-By`. HSTS and automatic HTTPS upgrades are
-disabled for this local HTTP application. Rate limiting remains optional for a
-future change.
+disabled for this local HTTP application. Swagger UI serves assets locally and
+uses the same origin as the API, so no CORS middleware is needed.
+
+POST `/organisations` has an in-memory rate limit of 100 requests per IP in a
+60-second window. GET and documentation remain available. Limited requests
+receive the standard `429 RATE_LIMITED` error, `Retry-After`, and draft 8
+`RateLimit` / `RateLimit-Policy` headers. The budget is local to the process and
+resets on restart; invalid POST requests also consume it once they reach the
+route limiter. Text successes explicitly use `text/plain`; JSON responses use
+`application/json`.
 
 ## Linting and formatting
 

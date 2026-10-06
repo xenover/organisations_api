@@ -45,6 +45,11 @@ export const ERROR_DEFINITIONS = {
     message: "Invalid request body",
     statusCode: 400,
   },
+  RATE_LIMITED: {
+    code: "RATE_LIMITED",
+    message: "Too many POST requests; retry later",
+    statusCode: 429,
+  },
 } as const satisfies Record<string, ErrorDefinition>;
 
 // These identifiers come from Express's body parser.

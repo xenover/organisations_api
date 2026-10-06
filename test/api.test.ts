@@ -178,6 +178,75 @@ describe("Organisations", () => {
     });
   });
 
+  describe("Documentation and existing endpoint enhancements", () => {
+    it("preserves POST's 201 OK response when creating and reusing a tree", async () => {
+      const body = {
+        org_name: "DocumentedParent",
+        daughters: [{ org_name: "DocumentedChild" }],
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const response = await request(server)
+          .post("/organisations")
+          .send(body)
+          .expect(201);
+        expect(response.text).to.equal("OK");
+        expect(response.headers["content-type"]).to.match(/text\/plain/);
+        expect(response.headers.location).to.equal(undefined);
+        expect(response.headers.ratelimit).to.be.a("string");
+      }
+      const response = await request(server)
+        .get("/organisations?name=DocumentedChild")
+        .expect(200);
+      expect(response.body).to.deep.equal([
+        { org_name: "DocumentedParent", relationship_type: "parent" },
+      ]);
+    });
+
+    it("serves Swagger UI and local assets under Helmet's headers", async () => {
+      const redirect = await request(server).get("/swagger").expect(301);
+      expect(redirect.headers.location).to.equal("/swagger/");
+      const html = await request(server).get("/swagger/").expect(200);
+      expect(html.headers["content-type"]).to.match(/text\/html/);
+      expect(html.text).to.include("swagger-ui-bundle.js");
+      expect(html.headers["x-content-type-options"]).to.equal("nosniff");
+      for (const asset of [
+        "swagger-ui.css",
+        "swagger-ui-bundle.js",
+        "swagger-ui-init.js",
+      ]) {
+        await request(server).get(`/swagger/${asset}`).expect(200);
+      }
+      const init = await request(server)
+        .get("/swagger/swagger-ui-init.js")
+        .expect(200);
+      expect(init.text).to.include("/swagger.json");
+    });
+
+    it("returns unique request IDs on successes and errors while preserving the root response", async () => {
+      const success = await request(server).get("/").expect(200);
+      const failure = await request(server).get("/missing").expect(404);
+      const uuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+      expect(success.headers["x-request-id"]).to.match(uuid);
+      expect(failure.headers["x-request-id"]).to.match(uuid);
+      expect(success.headers["x-request-id"]).not.to.equal(
+        failure.headers["x-request-id"],
+      );
+      expect(success.text).to.equal("Nothing here");
+      expect(success.headers["content-type"]).to.match(/text\/plain/);
+    });
+
+    it("keeps ID-based and mutation endpoints outside the original API", async () => {
+      await request(server).get("/organisations/1").expect(404);
+      await request(server).get("/organisations/1/relationships").expect(404);
+      await request(server)
+        .patch("/organisations/1")
+        .send({ org_name: "Ignored" })
+        .expect(404);
+      await request(server).delete("/organisations/1").expect(404);
+    });
+  });
+
   it("sets security headers on success, validation errors, and missing routes", async () => {
     for (const [path, status] of [
       ["/", 200],

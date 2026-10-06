@@ -38,6 +38,7 @@ export const errorHandler: ErrorRequestHandler = (
     path: req.path,
     statusCode: normalized.statusCode,
     code: normalized.code,
+    requestId: res.locals.requestId,
   };
   if (normalized.statusCode >= 500) {
     logger.error(log, "Request failed");
