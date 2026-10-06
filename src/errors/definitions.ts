@@ -20,11 +20,6 @@ export const ERROR_DEFINITIONS = {
     message: "Route not found",
     statusCode: 404,
   },
-  ORGANISATION_NOT_FOUND: {
-    code: "NOT_FOUND",
-    message: "Organisation not found",
-    statusCode: 404,
-  },
   CONFLICT: {
     code: "CONFLICT",
     message: "Request conflicts with the current state",
@@ -52,7 +47,7 @@ export const ERROR_DEFINITIONS = {
   },
   RATE_LIMITED: {
     code: "RATE_LIMITED",
-    message: "Too many mutation requests; retry later",
+    message: "Too many POST requests; retry later",
     statusCode: 429,
   },
 } as const satisfies Record<string, ErrorDefinition>;

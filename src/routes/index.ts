@@ -8,26 +8,17 @@ const appRouter = (app: Express): void => {
    * @openapi
    * /:
    *   get:
-   *     summary: API information
+   *     summary: Root endpoint
    *     responses:
    *       '200':
-   *         description: API name and documentation URL
+   *         description: Original root response
    *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     name: { type: string }
-   *                     documentation: { type: string }
-   *             example: { data: { name: Organisations API, documentation: /swagger } }
+   *           text/plain:
+   *             schema: { type: string }
+   *             example: Nothing here
    */
   app.get("/", (_req, res) => {
-    res.json({
-      data: { name: "Organisations API", documentation: "/swagger" },
-    });
+    res.type("text/plain").send("Nothing here");
   });
   /**
    * @openapi

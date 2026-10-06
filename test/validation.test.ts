@@ -24,7 +24,7 @@ describe("Validated handler inputs", () => {
   it("supplies page 1 when omitted without changing the query getter", async () => {
     const response = await request(app).get("/query?name=Child").expect(200);
     expect(response.body).to.deep.equal({
-      parsed: { name: "Child", page: 1, limit: 100, offset: 0 },
+      parsed: { name: "Child", page: 1 },
       nextPage: 2,
       raw: { name: "Child" },
     });
@@ -35,7 +35,7 @@ describe("Validated handler inputs", () => {
       .get("/query?name=Child&page=002&extra=ignored")
       .expect(200);
     expect(response.body).to.deep.equal({
-      parsed: { name: "Child", page: 2, limit: 100, offset: 100 },
+      parsed: { name: "Child", page: 2 },
       nextPage: 3,
       raw: { name: "Child", page: "002", extra: "ignored" },
     });
