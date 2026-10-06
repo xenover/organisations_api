@@ -5,7 +5,9 @@ import configurations from "../knexfile.js";
 import { after, before, describe, it } from "mocha";
 import type {
   OrganisationInput,
+  OrganisationRecord,
   OrganisationRelationship,
+  RelationshipRecord,
 } from "../src/types/organisations.js";
 
 const config = configurations.test;
@@ -80,6 +82,128 @@ describe("Organisations", () => {
         .expect(200)
         .then((response) => expect(response.body).to.deep.equal(expectedJson));
     });
+  });
+
+  describe("atomic recursive insertion", () => {
+    async function snapshot() {
+      return {
+        organisations:
+          await knex<OrganisationRecord>("organisations").orderBy("id"),
+        relationships:
+          await knex<RelationshipRecord>("relationships").orderBy("id"),
+      };
+    }
+
+    it("commits a tree while reusing repeated names and links", async () => {
+      const input = {
+        org_name: "TransactionalParent",
+        daughters: [
+          { org_name: "TransactionalChild" },
+          {
+            org_name: "TransactionalChild",
+            daughters: [{ org_name: "TransactionalGrandchild" }],
+          },
+        ],
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const response = await request(server)
+          .post("/organisations")
+          .send(input)
+          .expect(201);
+        expect(response.text).to.equal("OK");
+      }
+      const rows = await knex<OrganisationRecord>("organisations")
+        .whereIn("name", [
+          "TransactionalParent",
+          "TransactionalChild",
+          "TransactionalGrandchild",
+        ])
+        .orderBy("id");
+      expect(rows).to.have.length(3);
+      const links = await knex<RelationshipRecord>("relationships").whereIn(
+        "parent_id",
+        rows.map(({ id }) => id),
+      );
+      expect(links).to.have.length(2);
+      const response = await request(server)
+        .get("/organisations?name=TransactionalChild")
+        .expect(200);
+      expect(response.body).to.deep.equal([
+        { org_name: "TransactionalGrandchild", relationship_type: "daughter" },
+        { org_name: "TransactionalParent", relationship_type: "parent" },
+      ]);
+    });
+
+    for (const table of ["organisations", "relationships"] as const) {
+      it(`rolls back the entire tree when a nested ${table} write fails`, async () => {
+        const prefix = `Rollback-${table}`;
+        const existing = {
+          org_name: `${prefix}-Parent`,
+          daughters: [{ org_name: `${prefix}-Existing` }],
+        };
+        await request(server).post("/organisations").send(existing).expect(201);
+        const before = await snapshot();
+        const rejectedName = `${prefix}-Rejected`;
+        const condition =
+          table === "organisations"
+            ? "NEW.name = ?"
+            : "(SELECT name FROM organisations WHERE id = NEW.child_id) = ?";
+        // SQLite trigger definitions require literals rather than bound parameters.
+        const predicate = knex.raw(condition, [rejectedName]).toQuery();
+        // A real SQLite failure after earlier branches were written checks rollback
+        // across both repositories, including deep recursive calls.
+        await knex.raw(
+          `CREATE TRIGGER reject_tree_write BEFORE INSERT ON ??
+           WHEN ${predicate}
+           BEGIN SELECT RAISE(ABORT, 'Injected tree write failure'); END`,
+          [table],
+        );
+        try {
+          const input = {
+            org_name: existing.org_name,
+            daughters: [
+              ...existing.daughters,
+              { org_name: `${prefix}-Earlier` },
+              {
+                org_name: `${prefix}-Branch`,
+                daughters: [{ org_name: rejectedName }],
+              },
+            ],
+          };
+          const response = await request(server)
+            .post("/organisations")
+            .send(input)
+            .expect(500);
+          expect(response.body).to.deep.equal({
+            error: {
+              code: "INTERNAL_ERROR",
+              message: "Internal server error",
+              statusCode: 500,
+              details: {},
+            },
+          });
+          expect(await snapshot()).to.deep.equal(before);
+        } finally {
+          await knex.raw("DROP TRIGGER reject_tree_write");
+        }
+        // The connection remains usable after rollback, and retrying can commit.
+        await request(server)
+          .post("/organisations")
+          .send({
+            org_name: existing.org_name,
+            daughters: [{ org_name: rejectedName }],
+          })
+          .expect(201);
+        const response = await request(server)
+          .get("/organisations")
+          .query({ name: rejectedName })
+          .expect(200);
+        expect(response.body).to.deep.equal([
+          { org_name: `${prefix}-Existing`, relationship_type: "sister" },
+          { org_name: existing.org_name, relationship_type: "parent" },
+        ]);
+      });
+    }
   });
 
   describe("input validation", () => {
