@@ -29,6 +29,15 @@ describe("Environment configuration", () => {
     });
   });
 
+  it("accepts an explicit SQLite path and shutdown deadline", () => {
+    const settings = loadEnvironment(root, {
+      SQLITE_FILENAME: "/tmp/demo.sqlite3",
+      SHUTDOWN_TIMEOUT_MS: "2500",
+    });
+    expect(settings.SQLITE_FILENAME).to.equal("/tmp/demo.sqlite3");
+    expect(settings.SHUTDOWN_TIMEOUT_MS).to.equal(2500);
+  });
+
   it("fails on unreadable environment files instead of falling back to defaults", () => {
     mkdirSync(join(directory, ".env"));
     expect(() => loadEnvironment(root, {})).to.throw();
@@ -76,6 +85,7 @@ describe("Environment configuration", () => {
   for (const invalid of [
     { NODE_ENV: "production" },
     { LOG_LEVEL: "verbose" },
+    { SQLITE_FILENAME: " " },
     ...["", "0", "-1", "1.5", "60001", "abc"].map((SHUTDOWN_TIMEOUT_MS) => ({
       SHUTDOWN_TIMEOUT_MS,
     })),

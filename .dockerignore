@@ -1,6 +1,14 @@
 node_modules
 npm-debug.log
 dev.sqlite3
+**/*.sqlite3*
+**/*.sqlite
+**/*.db
+coverage
+.github
+.husky
+.agents
+.codex
 test
 test.sqlite3
 dist

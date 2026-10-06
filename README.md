@@ -101,12 +101,13 @@ Copy `.env.example` to `.env` to customize the local setup. `npm run dev`,
 `src/config/env.ts`, including when using compiled files or running from another
 working directory.
 
-| Variable              | Default                                   | Accepted values                                                    |
-| --------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
-| `NODE_ENV`            | `development`                             | `development` or `test`                                            |
-| `PORT`                | `3000`                                    | Integer from 0 to 65535; 0 chooses an available port               |
-| `LOG_LEVEL`           | `debug` in development, `silent` in tests | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`    |
-| `SHUTDOWN_TIMEOUT_MS` | `10000`                                   | Integer from 1 to 60000; bounds HTTP draining and database cleanup |
+| Variable              | Default                                               | Accepted values                                                         |
+| --------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| `NODE_ENV`            | `development`                                         | `development` or `test`                                                 |
+| `PORT`                | `3000`                                                | Integer from 0 to 65535; 0 chooses an available port                    |
+| `LOG_LEVEL`           | `debug` in development, `silent` in tests             | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`         |
+| `SQLITE_FILENAME`     | `dev.sqlite3` in development, `test.sqlite3` in tests | Nonblank SQLite file path; relative paths resolve from the project root |
+| `SHUTDOWN_TIMEOUT_MS` | `10000`                                               | Integer from 1 to 60000; bounds HTTP draining and database cleanup      |
 
 The mode is selected from the process's `NODE_ENV`, then `.env`, then the default.
 Values from `.env.development` or `.env.test` override `.env`; externally supplied
@@ -295,8 +296,66 @@ There is no release publishing or deployment workflow.
 
 ## Docker setup
 
-- docker build -t organisations_api .
-- docker run -p 3000:3000 -d organisations_api
+The multi-stage image compiles TypeScript and native SQLite in its build stage.
+The runtime contains compiled files, migrations, and production dependencies;
+it runs as the `node` user. Environment files, host databases, tests, coverage,
+and development tools are excluded. A database is not created during the build.
+
+```sh
+docker build -t organisations_api:local .
+docker volume create organisations_sqlite
+docker run --name organisations_api -p 127.0.0.1:3000:3000 \
+  --mount source=organisations_sqlite,target=/usr/src/app/data \
+  organisations_api:local
+```
+
+The default entry point runs pending migrations against the mounted database,
+then executes the compiled server directly so it receives stop signals.
+`SQLITE_FILENAME` defaults to `/usr/src/app/data/dev.sqlite3` in the image. New
+named volumes inherit the data directory's `node` ownership (UID/GID 1000).
+Existing volumes or host bind mounts must provide writable storage with those
+permissions. Custom paths require an existing writable parent directory.
+
+The health check queries `/health` every 10 seconds with a two-second request
+bound and a three-second Docker bound. It reports HTTP liveness; inspect `/ready`
+separately for database readiness. The container uses port 3000 by default;
+keep it nonzero when overriding it so the health check can reach it.
+
+For an optional local Compose workflow:
+
+```sh
+docker compose up --build -d
+curl http://localhost:3000/ready
+docker compose logs -f api
+docker compose down
+```
+
+Compose runs the compiled application, without source reloads or another database
+service. `API_PORT=3100 docker compose up -d` changes the host port. Its named
+SQLite volume survives container replacement and `down`; `down --volumes`
+explicitly deletes the data. Optional `.env.container` supplies runtime settings
+such as `LOG_LEVEL` and `SHUTDOWN_TIMEOUT_MS`; Compose fixes the internal port,
+mode, and database path. Its 65-second stop grace exceeds the maximum configured
+shutdown deadline. For plain Docker, use `docker stop --time 65 organisations_api`
+to allow the same grace.
+
+Run compiled migrations manually by overriding the entry point:
+
+```sh
+docker run --rm --entrypoint node \
+  --mount source=organisations_sqlite,target=/usr/src/app/data \
+  organisations_api:local node_modules/knex/bin/cli.js \
+  --knexfile dist/knexfile.js migrate:latest
+```
+
+A local Linux amd64 verification measured a 301.5 MB image.
+The HTTP readiness probe succeeded after 0.64 seconds with a fresh
+volume and 0.62 seconds with an existing volume (measured after
+`docker run` returned). These observations depend on the host and include pending
+migrations; they are not performance targets.
+
+Stop the API before manual rollback; substitute `migrate:rollback` for that
+operation. The next normal startup reapplies pending migrations.
 
 ## Making requests
 

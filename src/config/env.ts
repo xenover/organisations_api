@@ -9,6 +9,7 @@ export const projectRoot = new URL(
 
 const environmentSchema = z.object({
   NODE_ENV: z.enum(["development", "test"]).default("development"),
+  SQLITE_FILENAME: z.string().trim().min(1).optional(),
   PORT: z
     .string()
     .regex(/^\d+$/, "Port must be an integer between 0 and 65535")
