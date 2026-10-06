@@ -187,5 +187,7 @@ secret-injection examples use harmless placeholders and add no secret dependency
 - [Contributing and PR review](CONTRIBUTING.md)
 - [Local configuration and containers](docs/operations.md)
 - [Structured logging](docs/logging.md)
+- [Dependency and repository maintenance](docs/maintenance.md)
 
-The package declares the **ISC license** in [package.json](package.json).
+Licensed under [ISC](LICENSE), as declared in [package.json](package.json).
+See [SECURITY.md](SECURITY.md) for reporting security concerns.
