@@ -38,8 +38,3 @@ If filling in GitHub's optional About fields, a suitable description is
 Useful topics are `nodejs`, `typescript`, `express`, `sqlite`, and `rest-api`.
 Leave the website field empty unless an actual site exists. These optional
 metadata changes do not require changing repository administration policies.
-
-The [ISC license](../LICENSE) matches the license already declared in
-`package.json`; the container includes the same notice. The original author and
-2020 project date are retained. For vulnerability reporting, use the routes in
-[SECURITY.md](../SECURITY.md).

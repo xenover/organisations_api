@@ -20,7 +20,6 @@ FROM node:24.21.0-bookworm-slim AS runtime
 WORKDIR /usr/src/app
 ENV NODE_ENV=development PORT=3000 LOG_LEVEL=info SQLITE_FILENAME=/usr/src/app/data/dev.sqlite3
 COPY --from=build --chown=node:node /usr/src/app/package.json ./
-COPY --chown=node:node LICENSE ./
 COPY --from=build --chown=node:node /usr/src/app/node_modules ./node_modules
 COPY --from=build --chown=node:node /usr/src/app/dist ./dist
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/organisations-entrypoint

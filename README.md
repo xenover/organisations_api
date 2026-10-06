@@ -424,5 +424,4 @@ operation. The next normal startup reapplies pending migrations.
 ## Repository maintenance
 
 See [dependency and repository maintenance](docs/maintenance.md) for the reviewed
-update policy and [SECURITY.md](SECURITY.md) for reporting security concerns.
-Licensed under [ISC](LICENSE), as declared in [package.json](package.json).
+update policy.
