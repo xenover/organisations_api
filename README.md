@@ -1,5 +1,7 @@
 # Organisations API
 
+[![CI](https://github.com/xenover/organisations_api/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/xenover/organisations_api/actions/workflows/ci.yml)
+
 Simple JSON API to manage organisations and their relationships
 
 ## Technologies used
@@ -259,6 +261,20 @@ Test commands disable Node's experimental `require(esm)` path so Mocha imports
 ESM tests consistently. Otherwise Mocha's require-first fallback and tsx can
 load the same module twice with conflicting CommonJS/ESM source maps, producing
 misleading coverage. This setting applies to normal, watch, and debug runs.
+
+## Continuous integration
+
+GitHub Actions runs `.github/workflows/ci.yml` for every pull request (including
+PRs targeting another branch in a stack), pushes to `master`, and manual runs.
+It installs locked dependencies with `npm ci` using the Node 24 version in
+`.nvmrc`, then checks formatting, lint, types, build, tests/coverage, and
+high/critical dependency advisories. Each failed check fails the job.
+
+The workflow uploads the HTML, LCOV, and JSON coverage reports as a `coverage`
+artifact for 14 days, including after failed tests when reports were generated.
+Raw V8 temporary data is excluded. Actions use pinned commit SHAs and read-only
+repository permissions. Superseded runs for the same PR or branch are canceled.
+There is no release publishing or deployment workflow.
 
 ## Docker setup
 
