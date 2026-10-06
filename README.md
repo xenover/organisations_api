@@ -101,13 +101,14 @@ Copy `.env.example` to `.env` to customize the local setup. `npm run dev`,
 `src/config/env.ts`, including when using compiled files or running from another
 working directory.
 
-| Variable              | Default                                               | Accepted values                                                         |
-| --------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------- |
-| `NODE_ENV`            | `development`                                         | `development` or `test`                                                 |
-| `PORT`                | `3000`                                                | Integer from 0 to 65535; 0 chooses an available port                    |
-| `LOG_LEVEL`           | `debug` in development, `silent` in tests             | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`         |
-| `SQLITE_FILENAME`     | `dev.sqlite3` in development, `test.sqlite3` in tests | Nonblank SQLite file path; relative paths resolve from the project root |
-| `SHUTDOWN_TIMEOUT_MS` | `10000`                                               | Integer from 1 to 60000; bounds HTTP draining and database cleanup      |
+| Variable              | Default                                               | Accepted values                                                                             |
+| --------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `NODE_ENV`            | `development`                                         | `development` or `test`                                                                     |
+| `PORT`                | `3000`                                                | Integer from 0 to 65535; 0 chooses an available port                                        |
+| `LOG_LEVEL`           | `debug` in development, `silent` in tests             | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`                             |
+| `CORS_ORIGINS`        | Empty list                                            | Comma-separated exact HTTP(S) origins; no paths, trailing slashes, credentials, or wildcard |
+| `SQLITE_FILENAME`     | `dev.sqlite3` in development, `test.sqlite3` in tests | Nonblank SQLite file path; relative paths resolve from the project root                     |
+| `SHUTDOWN_TIMEOUT_MS` | `10000`                                               | Integer from 1 to 60000; bounds HTTP draining and database cleanup                          |
 
 The mode is selected from the process's `NODE_ENV`, then `.env`, then the default.
 Values from `.env.development` or `.env.test` override `.env`; externally supplied
@@ -213,7 +214,7 @@ started, the middleware delegates to Express to finish handling the connection.
 Helmet applies security headers before JSON parsing and routing, including to
 error responses, and removes `X-Powered-By`. HSTS and automatic HTTPS upgrades are
 disabled for this local HTTP application. Swagger UI serves assets locally and
-uses the same origin as the API, so no CORS middleware is needed.
+uses the same origin as the API. Cross-origin browser access is optional.
 
 POST `/organisations` has an in-memory rate limit of 100 requests per IP in a
 60-second window. GET and documentation remain available. Limited requests
@@ -222,6 +223,59 @@ receive the standard `429 RATE_LIMITED` error, `Retry-After`, and draft 8
 resets on restart; invalid POST requests also consume it once they reach the
 route limiter. Text successes explicitly use `text/plain`; JSON responses use
 `application/json`.
+
+## CORS and runtime configuration
+
+`CORS_ORIGINS=http://localhost:5173,https://example.com` enables browser access
+for those exact origins. The empty default grants no cross-origin access.
+Credentials are disabled because the application has no authentication. Allowed
+preflights return 204 and advertise only GET/POST and the Content-Type header;
+X-Request-ID is exposed so browser code can correlate responses with logs.
+Preflight runs before JSON parsing and POST rate limiting. Responses vary by
+Origin so caches do not mix the policies.
+
+Disallowed origins receive the existing HTTP response without
+Access-Control-Allow-Origin. Unsupported methods/headers are not advertised,
+so browsers reject those preflights. CORS governs whether browser JavaScript
+can read a response; it is not authentication or authorization and does not stop
+curl, other servers, or all cross-origin writes. Same-origin Swagger and requests
+without Origin continue to work. See the [Express CORS documentation](https://expressjs.com/en/resources/middleware/cors/).
+
+SQLite needs no credentials. To demonstrate runtime injection, create an environment
+file outside the repository, such as `/absolute/private/organisations.env`:
+
+```dotenv
+CORS_ORIGINS=http://localhost:5173
+LOG_LEVEL=info
+# Harmless demonstration only; the app ignores this variable.
+DEMO_SECRET=replace-with-a-local-placeholder
+```
+
+Restrict that file's permissions locally. Inject its settings without rebuilding:
+
+```sh
+docker run --name organisations_api -p 127.0.0.1:3000:3000 \
+  --env-file /absolute/private/organisations.env \
+  --mount source=organisations_sqlite,target=/usr/src/app/data \
+  organisations_api:local
+```
+
+Alternatively, mount an environment file read-only at `/usr/src/app/.env` using
+`--mount type=bind,source=/absolute/private/organisations.env,target=/usr/src/app/.env,readonly`.
+The normal file-loading rules apply; variables already set in the process/image
+have priority over mounted files. `.env.container` is the optional Compose runtime
+file and is excluded from Git and builds. Compose's explicit mode, port, and
+storage settings take priority over that file.
+
+Keep real values outside source, Docker build arguments, and image layers. Runtime
+injection does not make values inaccessible to the local Docker operator. The app
+validates only its supported settings and does not print the environment or the
+unused demonstration variable. Do not paste actual values into logs or PRs.
+
+The existing CI audit already runs `npm audit --audit-level=high`: high/critical
+advisories fail the job; lower severities can be reviewed without blocking it.
+Dependency updates remain reviewed changes rather than automatic fixes. Helmet,
+Zod validation, parameterized queries, and the existing POST budget stay active.
 
 ## Linting and formatting
 
