@@ -242,6 +242,24 @@ Supertest owns each request's temporary server. Teardown closes both Knex client
 on successful and failed tests. Watch mode restarts the process so native ESM
 modules and test data cannot carry over between runs.
 
+`npm run test:coverage` runs the same suite with c8/V8 coverage. It writes the HTML
+report to `coverage/index.html`, LCOV to `coverage/lcov.info`, and a JSON summary
+to `coverage/coverage-summary.json`. Reports include application TypeScript,
+server startup, Knex configuration, and migrations, including unloaded files.
+Type-only interfaces, test support, dependencies, and generated output are excluded.
+Coverage is remapped to original source files before exclusions are applied.
+
+The existing 59-test suite measured 97.85% lines/statements, 97.67% functions,
+and 93.13% branches before the additional behavior tests. The enforced global
+minimums are 95% lines/statements/functions and 90% branches, allowing modest
+headroom while detecting regressions. Critical behavior is tested explicitly:
+pagination, repeated/concurrent insertion, rollback, errors, logging, and limits.
+
+Test commands disable Node's experimental `require(esm)` path so Mocha imports
+ESM tests consistently. Otherwise Mocha's require-first fallback and tsx can
+load the same module twice with conflicting CommonJS/ESM source maps, producing
+misleading coverage. This setting applies to normal, watch, and debug runs.
+
 ## Docker setup
 
 - docker build -t organisations_api .
