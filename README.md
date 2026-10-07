@@ -420,3 +420,8 @@ operation. The next normal startup reapplies pending migrations.
 
 - using curl/postman/insomnia etc POST the JSON to http://localhost:3000/organisations
 - check the results using GET http://localhost:3000/organisations?name=Black%20Banana&page=1
+
+## Repository maintenance
+
+See [dependency and repository maintenance](docs/maintenance.md) for the reviewed
+update policy.

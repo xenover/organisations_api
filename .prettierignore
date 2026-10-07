@@ -3,5 +3,11 @@ dist/
 .husky/_/
 package-lock.json
 *.sqlite3*
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+/data/
+*.log
 .dccache
 coverage/
