@@ -1,23 +1,20 @@
 version: 2
+# Disable routine version-update PRs; security updates use separate repository settings.
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
-    groups:
-      npm-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 0
     ignore:
-      # Runtime support remains Node 24; other package majors get separate PRs.
+      # Runtime support remains Node 24.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "node"
         update-types: ["version-update:semver-major"]
@@ -25,4 +22,4 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
