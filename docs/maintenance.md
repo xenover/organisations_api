@@ -2,12 +2,20 @@
 
 ## Reviewed dependency updates
 
-`.github/dependabot.yml` checks npm, the Docker base image, and GitHub Actions
-weekly after the configuration reaches the default branch. npm minor/patch
-updates share a group; other npm majors are separate reviewable PRs. Version
-update PR limits are three for npm, one for Docker, and three for Actions.
-There is no automatic merge workflow. Security updates follow GitHub's separate
-security-update settings and are not limited by these version-update PR limits.
+This demonstration app is revisited roughly once a year. Routine Dependabot
+version-update PRs are disabled for npm, the Docker base image, and GitHub Actions
+by setting `open-pull-requests-limit: 0` in `.github/dependabot.yml`. The required
+weekly schedules remain in the configuration but do not generate version-update
+PRs with this limit.
+
+Keep Dependabot alerts and Dependabot security updates enabled in the repository's
+Settings > Advanced Security. Security-update PRs follow those separate settings
+and are not disabled by the version-update PR limit. There is no automatic merge
+workflow; review security fixes when they arrive.
+
+When returning to the project, aim to review dependencies manually once a year:
+check supported versions, release notes, and compatibility, then update packages,
+the Docker base image, and GitHub Actions as needed.
 
 Node support stays on major 24. Dependabot ignores major updates for `@types/node`
 and the `node` image. When reviewing a Node 24 image update, synchronize `.nvmrc`
