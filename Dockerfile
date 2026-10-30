@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24.21.0-bookworm-slim AS build
+FROM node:24.22.0-bookworm-slim AS build
 WORKDIR /usr/src/app
 COPY package.json package-lock.json .npmrc ./
 # Build SQLite for this image's libc; the optional CA is only mounted during installation.
@@ -16,7 +16,7 @@ COPY src ./src
 COPY migrations ./migrations
 RUN npm run build && npm prune --omit=dev --ignore-scripts --offline --no-audit
 
-FROM node:24.21.0-bookworm-slim AS runtime
+FROM node:24.22.0-bookworm-slim AS runtime
 WORKDIR /usr/src/app
 ENV NODE_ENV=development PORT=3000 LOG_LEVEL=info SQLITE_FILENAME=/usr/src/app/data/dev.sqlite3
 COPY --from=build --chown=node:node /usr/src/app/package.json ./
